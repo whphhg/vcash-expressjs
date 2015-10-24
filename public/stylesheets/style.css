@@ -1,0 +1,34 @@
+button, input, select, textarea {
+    margin-top: 5px;
+    font-size: 100%;
+    vertical-align: middle;
+}
+
+h3 {
+    font-size: 22.5px;
+}
+
+h4 {
+    font-size: 18.5px;
+}
+
+h5 {
+    margin-bottom: -13px;
+}
+
+input, select, textarea {
+    margin-right: 5px;
+}
+
+.tradehistory {
+    height:300px;
+    overflow-y:scroll;
+}
+
+.Sell {
+    color:red;
+}
+
+.Buy {
+    color:green;
+}
