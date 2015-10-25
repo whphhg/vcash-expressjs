@@ -481,7 +481,7 @@ io.on('connection', function(socket) {
      */
     function READ_udpconnections() {
         var exec = require('child_process').exec
-        child = exec("tail -300 /home/whphhg/.Vanillacoin/data/debug.log | grep UDP | tail -1 | sed 's/[^0-9]//g'", function (error, stdout, stderr) {
+        child = exec("tail -300 ~/.Vanillacoin/data/debug.log | grep UDP | tail -1 | sed 's/[^0-9]//g'", function (error, stdout, stderr) {
             socket.emit('udp_connections', stdout);
 
             if (error !== null) {
