@@ -62,7 +62,6 @@ block content
     div.container-fluid
         div.content
             div.container-fluid
-                h5 #[span#version] &nbsp;&nbsp; Protocol: #[span#protocolversion] &nbsp;&nbsp;  Wallet: #[span#walletversion]
                 div.row-fluid
                     div.span5
                         h3 BALANCE &nbsp;&nbsp; #[span#balance] &nbsp;&nbsp; &#579;#[span#balance_btc] &nbsp;&nbsp; #[span#balance_local]
@@ -296,7 +295,7 @@ block content
 
                             div.row-fluid
                                 div.span6
-                                    h4 ADDRESSES
+                                    h4 RECEIVING ADDRESSES
                                 div.span6.text-right
                                     input.btn(type='submit', id='button_new_address', value='New')
                                     script.
@@ -673,13 +672,13 @@ block content
                                                     /**
                                                      * Calculate %.
                                                      */
-                                                    socket.emit('calculate_percentage', (future_block / 100).toFixed(0) + '00');
+                                                    socket.emit('calculate_percentage', future_block);
 
                                                     /**
                                                      * Update text with % and estimated time.
                                                      */
                                                     socket.on('return_percentage', function(obj) {
-                                                        $("#estimate_blocktime").text(obj.trim() + '% EST. ON ' + estimate.toLocaleDateString() + ' ' + estimate.toLocaleTimeString());
+                                                        $("#estimate_blocktime").text(obj + '% EST. ON ' + estimate.toLocaleDateString() + ' ' + estimate.toLocaleTimeString());
                                                     });
 
                                                     /**
@@ -697,3 +696,7 @@ block content
                                             });
                         div.span8
                             h4 TODO: Graph displaying rewards per day
+    footer
+        .container-fluid.text-center
+            h5 #[span#version] &nbsp;&nbsp; Protocol: #[span#protocolversion] &nbsp;&nbsp;  Wallet: #[span#walletversion]
+            a(href='http://vanillacoin.net') vanillacoin.net

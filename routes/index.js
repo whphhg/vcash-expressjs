@@ -53,6 +53,36 @@ var extend = require('node.extend');
 var request = require('request');
 
 /**
+ * Incentive percentage schedule array (https://gist.github.com/john-connor/967ba7f7e9dd0ec1f7a9).
+ */
+var incentive_percentages = [{"block_height":242300, "percentage":12},
+                             {"block_height":246900, "percentage":13},
+                             {"block_height":252000, "percentage":14},
+                             {"block_height":257600, "percentage":15},
+                             {"block_height":263600, "percentage":16},
+                             {"block_height":270000, "percentage":17},
+                             {"block_height":276900, "percentage":18},
+                             {"block_height":284200, "percentage":19},
+                             {"block_height":292000, "percentage":20},
+                             {"block_height":300200, "percentage":21},
+                             {"block_height":308900, "percentage":22},
+                             {"block_height":318000, "percentage":23},
+                             {"block_height":327500, "percentage":24},
+                             {"block_height":337500, "percentage":25},
+                             {"block_height":347900, "percentage":26},
+                             {"block_height":358800, "percentage":27},
+                             {"block_height":370100, "percentage":28},
+                             {"block_height":381900, "percentage":29},
+                             {"block_height":394100, "percentage":30},
+                             {"block_height":406800, "percentage":31},
+                             {"block_height":419900, "percentage":32},
+                             {"block_height":433400, "percentage":33},
+                             {"block_height":447400, "percentage":34},
+                             {"block_height":461800, "percentage":35},
+                             {"block_height":476700, "percentage":36},
+                             {"block_height":492000, "percentage":37}];
+
+/**
  * Run when a client connects.
  */
 io.on('connection', function(socket) {
@@ -293,16 +323,17 @@ io.on('connection', function(socket) {
     /**
      * Calculate and emit incentive reward % based on supplied block number.
      */
-    socket.on('calculate_percentage', function(obj) {
-        var exec = require('child_process').exec
-        child = exec('grep ' + obj + ' ./public/reward_alg01 | cut -d: -f2', function (error, stdout, stderr) {
-            socket.emit('return_percentage', stdout);
-
-            if (error !== null) {
-                console.log('exec error: ' + error);
-                console.log('stderr: ' + stderr);
+    socket.on('calculate_percentage', function(block_number) {
+        for (var key in incentive_percentages) {
+            if (block_number < parseInt(incentive_percentages[key]['block_height'])) {
+                socket.emit('return_percentage', parseInt(incentive_percentages[key]['percentage']) - 1);
+                break;
             }
-        });
+
+            if (parseInt(key) == incentive_percentages.length - 1) {
+                socket.emit('return_percentage', parseInt(incentive_percentages[key]['percentage']));
+            }
+        }
     });
 
     /**
@@ -477,18 +508,22 @@ io.on('connection', function(socket) {
     }
 
     /**
-     * Read and emit UDP connections from debug.log.
+     * Read and emit UDP connections from debug.log (only on linux).
      */
     function READ_udpconnections() {
-        var exec = require('child_process').exec
-        child = exec("tail -300 ~/.Vanillacoin/data/debug.log | grep UDP | tail -1 | sed 's/[^0-9]//g'", function (error, stdout, stderr) {
-            socket.emit('udp_connections', stdout);
+        if (process.platform == "linux") {
+            var exec = require('child_process').exec
+            child = exec("tail -300 ~/.Vanillacoin/data/debug.log | grep UDP | tail -1 | sed 's/[^0-9]//g'", function (error, stdout, stderr) {
+                socket.emit('udp_connections', stdout);
 
-            if (error !== null) {
-                console.log('exec error: ' + error);
-                console.log('stderr: ' + stderr);
-            }
-        });
+                if (error !== null) {
+                    console.log('exec error: ' + error);
+                    console.log('stderr: ' + stderr);
+                }
+            });
+        } else {
+            socket.emit('udp_connections', '/');
+        }
     }
 
     /**
