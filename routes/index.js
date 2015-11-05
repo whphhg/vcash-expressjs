@@ -310,17 +310,6 @@ io.on('connection', function(socket) {
     });
 
     /**
-     * Use RPC method "listsinceblock" to list all transactions.
-     */
-    socket.on('complete_history', function(obj) {
-        client.call({"jsonrpc": "2.0", "method": "listsinceblock", "params": [], "id": 0}, function (err, res) {
-
-            if (err) { console.log(err); }
-            socket.emit('listsinceblock', res.result.transactions);
-        });
-    });
-
-    /**
      * Calculate and emit incentive reward % based on supplied block number.
      */
     socket.on('calculate_percentage', function(block_number) {
@@ -508,45 +497,6 @@ io.on('connection', function(socket) {
     }
 
     /**
-     * Read and emit UDP connections from debug.log (only on linux).
-     */
-    function READ_udpconnections() {
-        if (process.platform == "linux") {
-            var exec = require('child_process').exec
-            child = exec("tail -300 ~/.Vanillacoin/data/debug.log | grep UDP | tail -1 | sed 's/[^0-9]//g'", function (error, stdout, stderr) {
-                socket.emit('udp_connections', stdout);
-
-                if (error !== null) {
-                    console.log('exec error: ' + error);
-                    console.log('stderr: ' + stderr);
-                }
-            });
-        } else {
-            socket.emit('udp_connections', '/');
-        }
-    }
-
-    /**
-     * RPC method 'getinfo'.
-     */
-    function RPC_getinfo() {
-        client.call({"jsonrpc": "2.0", "method": "getinfo", "params": [], "id": 0}, function (err, res) {
-            if (err) { console.log(err); }
-            socket.emit('getinfo', res.result);
-        });
-    }
-
-    /**
-     * RPC method 'getincentiveinfo'.
-     */
-    function RPC_getincentiveinfo() {
-        client.call({"jsonrpc": "2.0", "method": "getincentiveinfo", "params": [], "id": 0}, function (err, res) {
-            if (err) { console.log(err); }
-            socket.emit('getincentiveinfo', res.result);
-        });
-    }
-
-    /**
      * RPC method 'listreceivedbyaddress' params 'minconf:1, includeempty:true'.
      */
     function RPC_listreceivedbyaddress() {
@@ -557,22 +507,12 @@ io.on('connection', function(socket) {
     }
 
     /**
-     * RPC method 'listtransactions'.
-     */
-    function RPC_listtransactions() {
-        client.call({"jsonrpc": "2.0", "method": "listtransactions", "params": [], "id": 0}, function (err, res) {
-            if (err) { console.log(err); }
-            socket.emit('listtransactions', res.result);
-        });
-    }
-
-    /**
      * RPC method 'walletpassphrase' without params. Returns error codes needed on client.
      */
     function RPC_walletpassphrase() {
         client.call({"jsonrpc": "2.0", "method": "walletpassphrase", "params": [], "id": 0}, function (err, res) {
             if (err) { console.log(err); }
-            socket.emit('wallet_passphrase_check', res);
+            socket.emit('wallet_passphrase_check', res.error);
         });
     }
 
@@ -611,11 +551,48 @@ io.on('connection', function(socket) {
      * Update local data when a client connects and after that every 10 seconds.
      */
     (function update() {
-        READ_udpconnections();
-        RPC_getinfo();
-        RPC_getincentiveinfo();
+        /**
+         * Read and emit UDP connections from debug.log (only on linux).
+         */
+        if (process.platform == "linux") {
+            var exec = require('child_process').exec
+            child = exec("tail -300 ~/.Vanillacoin/data/debug.log | grep UDP | tail -1 | sed 's/[^0-9]//g'", function (error, stdout, stderr) {
+                socket.emit('udp_connections', stdout);
+
+                if (error !== null) {
+                    console.log('exec error: ' + error);
+                    console.log('stderr: ' + stderr);
+                }
+            });
+        } else {
+            socket.emit('udp_connections', '/');
+        }
+
+        /**
+         * Use RPC method "listsinceblock" to list all transactions.
+         */
+        client.call({"jsonrpc": "2.0", "method": "listsinceblock", "params": [], "id": 0}, function (err, res) {
+            if (err) { console.log(err); }
+            socket.emit('listsinceblock', res.result.transactions);
+        });
+
+        /**
+         * RPC method 'getinfo'.
+         */
+        client.call({"jsonrpc": "2.0", "method": "getinfo", "params": [], "id": 0}, function (err, res) {
+            if (err) { console.log(err); }
+            socket.emit('getinfo', res.result);
+        });
+
+        /**
+         * RPC method 'getincentiveinfo'.
+         */
+        client.call({"jsonrpc": "2.0", "method": "getincentiveinfo", "params": [], "id": 0}, function (err, res) {
+            if (err) { console.log(err); }
+            socket.emit('getincentiveinfo', res.result);
+        });
+
         RPC_listreceivedbyaddress();
-        RPC_listtransactions();
 
         setTimeout(update, 10000);
     })();
