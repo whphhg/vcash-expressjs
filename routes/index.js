@@ -458,20 +458,25 @@ io.on('connection', function(socket) {
         function getBalance(address) {
             var request = https.get('https://blockchain.vanillacoin.net/ext/getbalance/$address'.replace('$address', address), function(res) {
                 res.on('data', function(obj) {
-                    parsedObj = JSON.parse(obj);
+                    /**
+                     * Make sure that the response is a valid float number.
+                     */
+                    if (!(parseFloat(obj.toString('utf8')) !== parseFloat(obj.toString('utf8')))) {
+                        parsedObj = JSON.parse(obj);
 
-                    if (parsedObj.error) {
-                        balance = 0;
-                    } else {
-                        balance = parsedObj;
+                        if (parsedObj.error) {
+                            balance = 0;
+                        } else {
+                            balance = parsedObj;
+                        }
+
+                        setBalance(address);
                     }
-
-                    setBalance(address);
                 });
             });
 
             request.on('error', function(err) {
-                console.log(err);
+                console.log('ERR getBalance', err);
             });
         }
 

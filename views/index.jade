@@ -212,6 +212,7 @@ block content
                             input.span2(id="transfer_amount", type="text", placeholder="Amount")
                             input.span6(id="transfer_recipient", type="text", placeholder="A valid address")
                             input.btn(type="submit", id="button_transfer", value="Send")
+                            input.btn(type="button", id="button_transfer_add_recipient", class="transfer_plus", value="+")
                         script.
                             /**
                              * Disable the button until inputs are filled.
@@ -291,7 +292,7 @@ block content
 
                     div.hidden.text-right#wallet_encrypt
                         form.form-horizontal(id="form_wallet_encrypt")
-                            input.span9(id="encrypt_key", type="text", placeholder="Wallet is unencrypted")
+                            input.span6(id="encrypt_key", type="text", placeholder="Wallet is unencrypted")
                             input.btn(type="submit", id="button_encrypt", value="Encrypt")
                             script.
                                 /**
@@ -313,7 +314,7 @@ block content
 
                     div.hidden.text-right#wallet_unlock
                         form.form-horizontal(id="form_wallet_unlock")
-                            input.span7(id="unlock_key", type="text", placeholder="Wallet is locked")
+                            input.span6(id="unlock_key", type="text", placeholder="Wallet is locked")
                             input.btn(type="submit", id="button_unlock", value="Unlock")
                             script.
                                 /**
@@ -333,7 +334,7 @@ block content
                                 });
 
                     div.hidden.text-right#wallet_lock
-                        input.span7.btn(type='submit', id='button_lock', value='Lock the wallet')
+                        input.span6.btn(type='submit', id='button_lock', value='Lock the wallet')
                         script.
                             /**
                              * On "button_lock" click call RPC method walletlock on the server.
@@ -467,7 +468,7 @@ block content
                         .row-fluid #[span#table_wallet_addresses]
                     div.row-fluid.text-right
                         form.form-horizontal(id="form_sweep_private_key")
-                            input.span10(id="sweep_this_private_key", type="text", placeholder="Sweep a valid private key")
+                            input.span6(id="sweep_this_private_key", type="text", placeholder="Sweep a valid private key")
                             input.btn(type="submit", id="button_sweep", value="Sweep")
 
                             script.
@@ -524,8 +525,8 @@ block content
                         div.row-fluid
                             div.text-right
                                 form.form-horizontal(id="form_add_watch_address")
-                                    input.span3(id="watch_address_title", type="text", placeholder="Title")
-                                    input.span7(id="watch_address", type="text", placeholder="A valid address")
+                                    input.span2(id="watch_address_title", type="text", placeholder="Title")
+                                    input.span6(id="watch_address", type="text", placeholder="A valid address")
                                     input.btn(type="submit", id="button_add_watch_address", value="Add")
                                     script.
                                         /**

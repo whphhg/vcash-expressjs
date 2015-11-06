@@ -45,3 +45,7 @@ input[type=text], select {
 .table-striped th {
     padding:2px;
 }
+
+.transfer_plus {
+    margin-left:5px;
+}
