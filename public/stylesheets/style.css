@@ -1,5 +1,5 @@
 button, input, select, textarea {
-    margin-top: 5.5px;
+    margin-top: 5px;
 }
 
 h3 {
@@ -15,7 +15,7 @@ input[type=text], select {
 }
 
 .tradehistory {
-    height:320px;
+    height:270px;
     overflow-y:scroll;
 }
 
@@ -25,12 +25,6 @@ input[type=text], select {
 
 .Buy {
     color:green;
-}
-
-#buttons_bar input, select {
-    margin:0px;
-    margin-top:-85px;
-    margin-right:5px;
 }
 
 .table-striped>tbody>tr:nth-child(odd)>td, 
@@ -46,6 +40,10 @@ input[type=text], select {
     padding:2px;
 }
 
-.transfer_plus {
+.button_margin_left {
     margin-left:5px;
+}
+
+hr {
+    margin:0px;
 }

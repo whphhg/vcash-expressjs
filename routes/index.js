@@ -17,13 +17,13 @@
  */
 
 /**
- * Express framework.
+ * Express framework
  */
 var express = require('express');
 var router = express.Router();
 
 /**
- * Start a new socket.io server listening on 20123.
+ * Start a new socket.io server listening on 20123
  */
 var http = require('http');
 var https = require('https');
@@ -31,19 +31,19 @@ var server = http.createServer(module.exports.app = express());
 var io = require('socket.io').listen(server.listen(20123));
 
 /**
- * Set port and host for RPC client.
+ * Set port and host for RPC client
  */
 var rpc = require('node-json-rpc');
 var client = new rpc.Client({port: 9195, host: '127.0.0.1', path: '/', strict: true});
 
 /**
- * Use nconf to load and update config.json.
+ * Use nconf to load and update config.json
  */
 var nconf = require('nconf').use('file', {file: './config.json'});
     nconf.load();
 
 /**
- * Array deep copying module (https://github.com/dreamerslab/node.extend).
+ * Array deep copying module (https://github.com/dreamerslab/node.extend)
  */
 var extend = require('node.extend');
 
@@ -53,56 +53,55 @@ var extend = require('node.extend');
 var request = require('request');
 
 /**
- * Incentive percentage schedule array (https://gist.github.com/john-connor/967ba7f7e9dd0ec1f7a9).
- */
-var incentive_percentages = [{"block_height":242300, "percentage":12},
-                             {"block_height":246900, "percentage":13},
-                             {"block_height":252000, "percentage":14},
-                             {"block_height":257600, "percentage":15},
-                             {"block_height":263600, "percentage":16},
-                             {"block_height":270000, "percentage":17},
-                             {"block_height":276900, "percentage":18},
-                             {"block_height":284200, "percentage":19},
-                             {"block_height":292000, "percentage":20},
-                             {"block_height":300200, "percentage":21},
-                             {"block_height":308900, "percentage":22},
-                             {"block_height":318000, "percentage":23},
-                             {"block_height":327500, "percentage":24},
-                             {"block_height":337500, "percentage":25},
-                             {"block_height":347900, "percentage":26},
-                             {"block_height":358800, "percentage":27},
-                             {"block_height":370100, "percentage":28},
-                             {"block_height":381900, "percentage":29},
-                             {"block_height":394100, "percentage":30},
-                             {"block_height":406800, "percentage":31},
-                             {"block_height":419900, "percentage":32},
-                             {"block_height":433400, "percentage":33},
-                             {"block_height":447400, "percentage":34},
-                             {"block_height":461800, "percentage":35},
-                             {"block_height":476700, "percentage":36},
-                             {"block_height":492000, "percentage":37}];
-
-/**
- * Run when a client connects.
+ * Run when a client connects
  */
 io.on('connection', function(socket) {
     /**
-     * Create a deep copy of watchaddresses array from nconf.
+     * Variables object
      */
-    var watchaddresses = extend(true, [], nconf.get('watchaddresses'));
+    var vars = {
+        "watch_addresses":extend(true, [], nconf.get('watchaddresses')),
+        "local_currency":nconf.get('settings:localcurrency'),
+        "btc_local":0,
+        "vnl_poloniex":0,
+        "vnl_bittrex":0,
+        "incentive_percentages":[{"block_height":246900, "percentage":13},
+                                 {"block_height":252000, "percentage":14},
+                                 {"block_height":257600, "percentage":15},
+                                 {"block_height":263600, "percentage":16},
+                                 {"block_height":270000, "percentage":17},
+                                 {"block_height":276900, "percentage":18},
+                                 {"block_height":284200, "percentage":19},
+                                 {"block_height":292000, "percentage":20},
+                                 {"block_height":300200, "percentage":21},
+                                 {"block_height":308900, "percentage":22},
+                                 {"block_height":318000, "percentage":23},
+                                 {"block_height":327500, "percentage":24},
+                                 {"block_height":337500, "percentage":25},
+                                 {"block_height":347900, "percentage":26},
+                                 {"block_height":358800, "percentage":27},
+                                 {"block_height":370100, "percentage":28},
+                                 {"block_height":381900, "percentage":29},
+                                 {"block_height":394100, "percentage":30},
+                                 {"block_height":406800, "percentage":31},
+                                 {"block_height":419900, "percentage":32},
+                                 {"block_height":433400, "percentage":33},
+                                 {"block_height":447400, "percentage":34},
+                                 {"block_height":461800, "percentage":35},
+                                 {"block_height":476700, "percentage":36},
+                                 {"block_height":492000, "percentage":37}],
+        "currencies":[]
+    }
 
     /**
-     * Currencies array: name, one_usd_buys, btc
+     * Emit incentive percentages
      */
-    var currencies = [];
+    socket.on('get_incentive_percentages', function() {
+        socket.emit('incentive_percentages', vars['incentive_percentages']);
+    });
 
     /**
-     * Last VNL prices from Poloniex and Bittrex.
-     */
-    var vnl_last = [];
-
-    /**
-     * Save new local currency to config.json & update.
+     * Save new local currency to config.json & update
      */
     socket.on('set_local_currency', function(currency) {
         nconf.set('settings:localcurrency', currency);
@@ -112,12 +111,13 @@ io.on('connection', function(socket) {
                 return;
             }
 
+            vars['local_currency'] = currency;
             update_prices(currency);
         });
     });
 
     /**
-     * Encrypt wallet.
+     * Encrypt wallet
      */
     socket.on('encryptwallet', function(encryptionkey) {
         client.call({"jsonrpc": "2.0", "method": "encryptwallet", "params": [encryptionkey], "id": 0}, function (err, res) {
@@ -130,14 +130,14 @@ io.on('connection', function(socket) {
     });
 
     /**
-     * Unlock wallet.
+     * Unlock wallet
      */
     socket.on('walletpassphrase', function(walletpassphrase) {
         client.call({"jsonrpc": "2.0", "method": "walletpassphrase", "params": [walletpassphrase], "id": 0}, function (err, res) {
             if (err) { console.log(err); }
 
             /**
-             * Update the locking / unlocking form.
+             * Update the locking / unlocking form
              */
             if (res.hasOwnProperty('result')) {
                 RPC_walletpassphrase();
@@ -150,35 +150,35 @@ io.on('connection', function(socket) {
     });
 
     /**
-     * Lock wallet.
+     * Lock wallet
      */
     socket.on('walletlock', function(obj) {
         client.call({"jsonrpc": "2.0", "method": "walletlock", "params": [], "id": 0}, function (err, res) {
             if (err) { console.log(err); }
 
             /**
-             * Update the locking / unlocking form.
+             * Update the locking / unlocking form
              */
             RPC_walletpassphrase();
         });
     });
 
     /**
-     * Generate a new wallet address.
+     * Generate a new wallet address
      */
     socket.on('getnewaddress', function(obj) {
         client.call({"jsonrpc": "2.0", "method": "getnewaddress", "params": [], "id": 0}, function (err, res) {
             if (err) { console.log(err); }
 
             /**
-             * Update wallet address list.
+             * Update wallet address list
              */
             RPC_listreceivedbyaddress();
         });
     });
 
     /**
-     * Sweep private key.
+     * Sweep private key
      */
     socket.on('importprivkey', function(privatekey) {
         client.call({"jsonrpc": "2.0", "method": "importprivkey", "params": [privatekey], "id": 0}, function (err, res) {
@@ -194,7 +194,7 @@ io.on('connection', function(socket) {
                 socket.emit('alerts', "Private key added successfully.");
 
                 /**
-                 * Update wallet address list.
+                 * Update wallet address list
                  */
                 RPC_listreceivedbyaddress();
             }
@@ -202,7 +202,7 @@ io.on('connection', function(socket) {
     });
 
     /**
-     * Add new watch address object to config.json.
+     * Add new watch address object to config.json
      */
     socket.on('addwatchaddress', function(array) {
         var address = array[0];
@@ -213,7 +213,7 @@ io.on('connection', function(socket) {
 
             if (res.result['isvalid'] && !res.result['ismine']) {
                 /**
-                 * Add new watch address object into config.json.
+                 * Add new watch address object into config.json
                  */
                 var configaddresses = nconf.get('watchaddresses');
                     configaddresses.push({"address":address, "title":title});
@@ -227,12 +227,12 @@ io.on('connection', function(socket) {
                 });
 
                 /**
-                 * Add new watch address object to watchaddresses array.
+                 * Add new watch address object to watchaddresses array
                  */
-                watchaddresses.push({"address":address, "title":title});
+                vars['watch_addresses'].push({"address":address, "title":title});
 
                 /**
-                 * Update watch address list.
+                 * Update watch address list
                  */
                 HTTPS_getwatchaddresses();
             } else if (res.result['ismine']) {
@@ -302,48 +302,47 @@ io.on('connection', function(socket) {
                 socket.emit('alerts', "Sent " + amount + " VNL to " + address + " (txid: " + res.result + ").");
 
                 /**
-                 * Update recent transaction list.
+                 * Update recent transaction list
                  */
-                RPC_listtransactions();
+                RPC_listsinceblock();
             }
         }); 
     });
 
     /**
-     * Calculate and emit incentive reward % based on supplied block number.
+     * Calculate and emit incentive reward % based on supplied block number
      */
     socket.on('calculate_percentage', function(block_number) {
-        for (var key in incentive_percentages) {
-            if (block_number < parseInt(incentive_percentages[key]['block_height'])) {
-                socket.emit('return_percentage', parseInt(incentive_percentages[key]['percentage']) - 1);
+        for (var key in vars['incentive_percentages']) {
+            if (block_number < parseInt(vars['incentive_percentages'][key]['block_height'])) {
+                socket.emit('return_percentage', parseInt(vars['incentive_percentages'][key]['percentage']) - 1);
                 break;
             }
 
-            if (parseInt(key) == incentive_percentages.length - 1) {
-                socket.emit('return_percentage', parseInt(incentive_percentages[key]['percentage']));
+            if (parseInt(key) == vars['incentive_percentages'].length - 1) {
+                socket.emit('return_percentage', parseInt(vars['incentive_percentages'][key]['percentage']));
             }
         }
     });
 
     /**
-     * Update prices across the page with supplied local currency.
+     * Update prices across the page with supplied local currency
      */
     function update_prices(currency) {
-        var btc_price = 0;
-        var vnl_average = (vnl_last[0] + vnl_last[1]) / 2;
+        var vnl_average = (vars['vnl_bittrex'] + vars['vnl_poloniex']) / 2;
 
-        for (var key in currencies) {
-            if (currencies[key]['name'] == currency) {
-                btc_price = currencies[key]['btc'];
+        for (var key in vars['currencies']) {
+            if (vars['currencies'][key]['name'] == currency) {
+                vars['btc_local'] = vars['currencies'][key]['btc'];
                 break;
             }
         }
 
-        socket.emit('local_currency', [currency, btc_price, vnl_average]);
+        socket.emit('local_currency', [vars['local_currency'], vars['btc_local'], vnl_average]);
     }
 
     /**
-     * JSON API for foreign exchange rates. Get current foreign exchange rates published by the European Central Bank. Updated daily.
+     * JSON API for foreign exchange rates. Get current foreign exchange rates published by the European Central Bank. Updated daily
      */
     function HTTPS_fixerio() {
         request('https://api.fixer.io/latest?base=USD', function (error, response, body) {
@@ -354,21 +353,21 @@ io.on('connection', function(socket) {
                 for (var key in fixerio) {
                     if (fixerio.hasOwnProperty(key)) {
                         /**
-                         * Insert into currencies array.
+                         * Insert into currencies array
                          */
-                        currencies.push({'name':key, 'one_usd_buys':fixerio[key]});
+                        vars['currencies'].push({'name':key, 'one_usd_buys':fixerio[key]});
                     }
                 }
 
                 /**
-                 * Because base is USD set USD to 1.
+                 * Because base is USD set USD to 1
                  */
-                currencies.push({'name':'USD', 'one_usd_buys':1});
+                vars['currencies'].push({'name':'USD', 'one_usd_buys':1});
 
                 /**
-                 * Emit to client.
+                 * Emit to client
                  */
-                socket.emit('fixerio', currencies);
+                socket.emit('fixerio', vars['currencies']);
             } else {
                 console.log('HTTPS_fixerio()', error);
             }
@@ -376,7 +375,7 @@ io.on('connection', function(socket) {
     }
 
     /**
-     * Latest BTC value in USD from Bistamp. Returns JSON dictionary like https://www.bitstamp.net/api/ticker/, but calculated values are from within an hour.
+     * Latest BTC value in USD from Bistamp. Returns JSON dictionary like https://www.bitstamp.net/api/ticker/, but calculated values are from within an hour
      */
     function HTTPS_bitstamp() {
         request('https://www.bitstamp.net/api/ticker_hour/', function (error, response, body) {
@@ -384,10 +383,10 @@ io.on('connection', function(socket) {
                 btc = JSON.parse(body);
 
                 /**
-                 * Update price for 1 BTC in local currency.
+                 * Update price for 1 BTC in local currency
                  */
-                for (var key in currencies) {
-                    currencies[key]['btc'] = currencies[key]['one_usd_buys'] * btc['last'];
+                for (var key in vars['currencies']) {
+                    vars['currencies'][key]['btc'] = vars['currencies'][key]['one_usd_buys'] * btc['last'];
                 }
             } else {
                 console.log('HTTPS_bitstamp()', error);
@@ -396,7 +395,7 @@ io.on('connection', function(socket) {
     }
 
     /**
-     * Get last 200 trades from Poloniex.
+     * Get last 200 trades from Poloniex
      */
     function HTTPS_poloniextradehistory() {
         request('https://poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL', function (error, response, body) {
@@ -404,10 +403,9 @@ io.on('connection', function(socket) {
                 body = JSON.parse(body);
 
                 /**
-                 * Add latest VNL price to place [0] in vnl_last array.
+                 * Add latest VNL price to vars object
                  */
-                vnl_last[0] = parseFloat(body[0]['rate']);
-
+                vars['vnl_poloniex'] = parseFloat(body[0]['rate']);
                 socket.emit('poloniextradehistory', body);
             } else {
                 console.log('HTTPS_poloniextradehistory()', error);
@@ -416,7 +414,7 @@ io.on('connection', function(socket) {
     }
 
     /**
-     * Get last 50 trades from Bittrex.
+     * Get last 50 trades from Bittrex
      */
     function HTTPS_bittrextradehistory() {
         request('https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50', function (error, response, body) {
@@ -425,10 +423,9 @@ io.on('connection', function(socket) {
                 body = body.result;
 
                 /**
-                 * Add latest VNL price to place [1] in vnl_last array.
+                 * Add latest VNL price to vars object
                  */
-                vnl_last[1] = parseFloat(body[0]['Price']);
-
+                vars['vnl_bittrex'] = parseFloat(body[0]['Price']);
                 socket.emit('bittrextradehistory', body);
             } else {
                 console.log('HTTPS_bittrextradehistory()', error);
@@ -437,29 +434,34 @@ io.on('connection', function(socket) {
     }
 
     /**
-     * Get and set balances then emit the updated array.
+     * Get and set balances then emit the updated array
      */
     function HTTPS_getwatchaddresses() {
         /**
-         * Set balance for the provided address.
+         * Set balance for the provided address
          */
         function setBalance(address) {
-            for (key in watchaddresses) {
-                if (watchaddresses[key]['address'] == address) {
-                    watchaddresses[key]['balance'] = balance;
+            for (key in vars['watch_addresses']) {
+                if (vars['watch_addresses'][key]['address'] == address) {
+                    vars['watch_addresses'][key]['balance'] = balance;
+
+                    setTimeout(function() {
+                        console.log(vars['local_currency'],vars['btc_local'],vars['vnl_poloniex'],vars['vnl_bittrex']);
+                    }, 3000);
                     break;
                 }
             }
         }
 
         /**
-         * Get balance of the provided address.
+         * Get balance of the provided address
          */
         function getBalance(address) {
             var request = https.get('https://blockchain.vanillacoin.net/ext/getbalance/$address'.replace('$address', address), function(res) {
                 res.on('data', function(obj) {
                     /**
-                     * Make sure that the response is a valid float number.
+                     * Make sure that the response is a valid float number
+                     * Since NaN is the only JavaScript value that is treated as unequal to itself, you can always test if a value is NaN by checking it for equality to itself
                      */
                     if (!(parseFloat(obj.toString('utf8')) !== parseFloat(obj.toString('utf8')))) {
                         parsedObj = JSON.parse(obj);
@@ -480,29 +482,29 @@ io.on('connection', function(socket) {
             });
         }
 
-        for (key in watchaddresses) {
-            if (!watchaddresses[key].hasOwnProperty('balance')) {
-                watchaddresses[key]['balance'] = 'Updating...';
+        for (key in vars['watch_addresses']) {
+            if (!vars['watch_addresses'][key].hasOwnProperty('balance')) {
+                vars['watch_addresses'][key]['balance'] = 'Updating...';
             }
 
-            getBalance(watchaddresses[key]['address']);
+            getBalance(vars['watch_addresses'][key]['address']);
         }
 
         /**
-         * Emit the array with 'Updating...' as balances on first load.
+         * Emit the array with 'Updating...' as balances on first load
          */
-        socket.emit('watchaddresses', watchaddresses);
+        socket.emit('watchaddresses', vars['watch_addresses']);
 
         /**
-         * Emit it again after 1 second when balances (should) update. Increase this timeout if you've added a lot of watch-only addresses.
+         * Emit it again after 1 second when balances (should) update. Increase this timeout if you've added a lot of watch-only addresses
          */
         setTimeout(function() {
-            socket.emit('watchaddresses', watchaddresses);
+            socket.emit('watchaddresses', vars['watch_addresses']);
         }, 1000);
     }
 
     /**
-     * RPC method 'listreceivedbyaddress' params 'minconf:1, includeempty:true'.
+     * RPC method 'listreceivedbyaddress' params 'minconf:1, includeempty:true'
      */
     function RPC_listreceivedbyaddress() {
         client.call({"jsonrpc": "2.0", "method": "listreceivedbyaddress", "params": {"minconf":1,"includeempty":true}, "id": 0}, function (err, res) {
@@ -512,7 +514,7 @@ io.on('connection', function(socket) {
     }
 
     /**
-     * RPC method 'walletpassphrase' without params. Returns error codes needed on client.
+     * RPC method 'walletpassphrase' without params. Returns error codes needed on client
      */
     function RPC_walletpassphrase() {
         client.call({"jsonrpc": "2.0", "method": "walletpassphrase", "params": [], "id": 0}, function (err, res) {
@@ -522,27 +524,37 @@ io.on('connection', function(socket) {
     }
 
     /**
-     * Check wallet state (locked, unlocked, unencrypted) when a client connects.
+     * Use RPC method "listsinceblock" to list all transactions
+     */
+    function RPC_listsinceblock() {
+        client.call({"jsonrpc": "2.0", "method": "listsinceblock", "params": [], "id": 0}, function (err, res) {
+            if (err) { console.log(err); }
+            socket.emit('listsinceblock', res.result.transactions);
+        });
+    }
+
+    /**
+     * Check wallet state (locked, unlocked, unencrypted) when a client connects
      */
     RPC_walletpassphrase();
 
     /**
-     * Get current foreign exchange rates published by the European Central Bank. Updated daily.
+     * Get current foreign exchange rates published by the European Central Bank. Updated daily
      */
     HTTPS_fixerio();
 
     /**
-     * Update prices to local currency set in nconf 2.5 seconds after client connects and after that every minute.
+     * Update prices to local currency set in nconf 2.5 seconds after client connects and after that every minute
      */
     setTimeout(function() {
         (function update() {
-            update_prices(nconf.get('settings:localcurrency'));
+            update_prices(vars['local_currency']);
             setTimeout(update, 60000);
         })();
     }, 2500);
 
     /**
-     * Update price for 1 BTC in local currency 1 second after client connects and after that every hour.
+     * Update price for 1 BTC in local currency 1 second after client connects and after that every hour
      */
     setTimeout(function() {
         (function update() {
@@ -553,11 +565,11 @@ io.on('connection', function(socket) {
     }, 1000);
 
     /**
-     * Update local data when a client connects and after that every 10 seconds.
+     * Update local data when a client connects and after that every 10 seconds
      */
     (function update() {
         /**
-         * Read and emit UDP connections from debug.log (only on linux).
+         * Read and emit UDP connections from debug.log (only on linux)
          */
         if (process.platform == "linux") {
             var exec = require('child_process').exec
@@ -574,15 +586,7 @@ io.on('connection', function(socket) {
         }
 
         /**
-         * Use RPC method "listsinceblock" to list all transactions.
-         */
-        client.call({"jsonrpc": "2.0", "method": "listsinceblock", "params": [], "id": 0}, function (err, res) {
-            if (err) { console.log(err); }
-            socket.emit('listsinceblock', res.result.transactions);
-        });
-
-        /**
-         * RPC method 'getinfo'.
+         * RPC method 'getinfo'
          */
         client.call({"jsonrpc": "2.0", "method": "getinfo", "params": [], "id": 0}, function (err, res) {
             if (err) { console.log(err); }
@@ -590,20 +594,21 @@ io.on('connection', function(socket) {
         });
 
         /**
-         * RPC method 'getincentiveinfo'.
+         * RPC method 'getincentiveinfo'
          */
         client.call({"jsonrpc": "2.0", "method": "getincentiveinfo", "params": [], "id": 0}, function (err, res) {
             if (err) { console.log(err); }
             socket.emit('getincentiveinfo', res.result);
         });
 
+        RPC_listsinceblock();
         RPC_listreceivedbyaddress();
 
         setTimeout(update, 10000);
     })();
 
     /**
-     * Update exchange trade histories when a client connects and after that every minute.
+     * Update exchange trade histories when a client connects and after that every minute
      */
     (function update() {
         HTTPS_poloniextradehistory();
@@ -613,7 +618,7 @@ io.on('connection', function(socket) {
     })();
 
     /**
-     * Update watch address data when a client connects and after that every 5 minutes.
+     * Update watch address data when a client connects and after that every 5 minutes
      */
     (function update() {
         HTTPS_getwatchaddresses();
@@ -623,7 +628,7 @@ io.on('connection', function(socket) {
 });
 
 /**
- * GET home page.
+ * GET home page
  */
 router.get('/', function(req, res, next) {
     res.render('index', {title: 'vanillacoind-web-ui'});

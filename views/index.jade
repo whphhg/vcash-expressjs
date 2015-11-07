@@ -59,16 +59,11 @@ block content
             moneysupply = obj['moneysupply'];
         });
 
-    div.container-fluid
-        div.row-fluid
-            div.span1
-            div.span5
+    .container-fluid
+        .row-fluid
+            .span1
+            .span5
                 h3 BALANCE &nbsp;&nbsp; #[span#balance] &nbsp;&nbsp; &#579;#[span#balance_btc] &nbsp;&nbsp; #[span#balance_local]
-            div.span5.text-right
-                h3 &#579;#[span#vnl_btc] &nbsp;&nbsp; #[span#vnl_local] &nbsp;&nbsp #[span#vnl_local_marketcap] MCAP
-        div.row-fluid
-            div.span1
-            div.span3
                 p
                     b Unconfirmed
                     | &nbsp;&nbsp; #[span#unconfirmed] &nbsp;&nbsp;
@@ -76,13 +71,112 @@ block content
                     | &nbsp;&nbsp; #[span#stake] &nbsp;&nbsp;
                     b Immature
                     | &nbsp;&nbsp; #[span#newmint]
-            div.span4.text-center#buttons_bar
+            .span5.text-right
+                h3 &#579;#[span#vnl_btc] &nbsp;&nbsp; #[span#vnl_local] &nbsp;&nbsp #[span#vnl_local_marketcap] MCAP
+                p
+                    b #[span#version] &nbsp;&nbsp; Protocol: 
+                    | #[span#protocolversion]
+                    b &nbsp;&nbsp; Wallet: 
+                    | #[span#walletversion]
+        .row-fluid
+            .span1
+            .span3
+                script.
+                    /**
+                     * Initial wallet "lock / unlock / encrypt" (passphrase) check.
+                     */
+                    socket.on('wallet_passphrase_check', function(res) {
+                        /**
+                         * error_code_wallet_wrong_enc_state = -15, wallet not encrypted.
+                         */
+                        if (res.code == -15) {
+                            $('#wallet_encrypt').toggleClass('hidden');
+                        }
+                        /**
+                         * error_code_invalid_params = -32602, wallet is encrypted and locked (in this case).
+                         */
+                        else if (res.code == -32602) {
+                            $('#wallet_lock').addClass('hidden');
+                            $('#wallet_unlock').toggleClass('hidden');
+                            $('#sweep_this_private_key').prop('disabled', true);
+                            $('#transfer_amount').prop('disabled', true);
+                            $('#transfer_recipient').prop('disabled', true);
+                            $('#button_transfer').prop('disabled', true);
+                            $('#button_sweep').prop('disabled', true);
+                        }
+                        /**
+                         * error_code_wallet_already_unlocked = -17, wallet unlocked.
+                         */
+                        else if (res.code == -17) {
+                            $('#wallet_unlock').addClass('hidden');
+                            $('#wallet_lock').toggleClass('hidden');
+                            $('#sweep_this_private_key').prop('disabled', false);
+                            $('#transfer_amount').prop('disabled', false);
+                            $('#transfer_recipient').prop('disabled', false);
+                        }
+                    });
+
+                .hidden#wallet_encrypt
+                    form.form-horizontal(id="form_wallet_encrypt")
+                        input.span9(id="encrypt_key", type="text", placeholder="Wallet is unencrypted")
+                        input.btn(type="submit", id="button_encrypt", value="Encrypt")
+                        script.
+                            /**
+                             * Disable the button until input is filled.
+                             */
+                            $('#button_encrypt').prop('disabled', true);
+                            $('#encrypt_key').keyup(function() {
+                                $('#button_encrypt').prop('disabled', this.value == "" ? true : false);     
+                            });
+
+                            /**
+                             * Emit key on form submit.
+                             */
+                            $('#form_wallet_encrypt').on('submit', function(e) {
+                                e.preventDefault();
+                                socket.emit('encryptwallet', $('#encrypt_key').val());
+                                $('#wallet_encrypt').toggleClass('hidden');
+                            });
+
+                .hidden#wallet_unlock
+                    form.form-horizontal(id="form_wallet_unlock")
+                        input.span9(id="unlock_key", type="text", placeholder="Wallet is locked")
+                        input.btn(type="submit", id="button_unlock", value="Unlock")
+                        script.
+                            /**
+                             * Disable the button until input is filled.
+                             */
+                            $('#button_unlock').prop('disabled', true);
+                            $('#unlock_key').keyup(function() {
+                                $('#button_unlock').prop('disabled', this.value == "" ? true : false);     
+                            });
+
+                            /**
+                             * Emit key on form submit.
+                             */
+                            $('#form_wallet_unlock').on('submit', function(e) {
+                                e.preventDefault();
+                                socket.emit('walletpassphrase', $('#unlock_key').val());
+                            });
+
+                .hidden#wallet_lock
+                    input.span9.btn(type='submit', id='button_lock', value='Lock the wallet')
+                    script.
+                        /**
+                         * On "button_lock" click call RPC method walletlock on the server.
+                         */
+                        $("#button_lock").click(function(){
+                            socket.emit('walletlock', true);
+                        });
+            .span4.text-center
                 input.btn(type='submit', id='button_node_incentives', value='Incentive info')
                 script.
                     /**
                      * Show node incentive info on "button_node_incentives" click.
                      */
                     $("#button_node_incentives").click(function() {
+                        socket.emit('get_incentive_percentages', true);
+
                         /**
                          * Handle clicks between "Complete history" and "Incentive info" buttons to correctly hide and show wallet "windows".
                          */
@@ -97,17 +191,12 @@ block content
                         }
                     });
 
-                input.btn(type='submit', id='button_complete_history', value='Maintenance')
+                input.btn(type='submit', id='button_complete_history', class="button_margin_left", value='Maintenance')
                 script.
                     /**
                      * Show complete history on "button_complete_history" click.
                      */
                     $("#button_complete_history").click(function() {
-                        /**
-                         * Call RPC method listsinceblock on the server and return complete history.
-                         */
-                        socket.emit('complete_history', true);
-
                         /**
                          * Handle clicks between "Complete history" and "Incentive info" buttons to correctly hide and show wallet "windows".
                          */
@@ -121,241 +210,144 @@ block content
                             $("#wallet_window").toggleClass('hidden');
                         }
                     });
-
-                
-                #[span#local_currencies]
-                input.btn(type='submit', id='button_set_local_currency', value='Set')
-                script.
-                    /**
-                     * Populate local currency dropdown selection menu.
-                     */
-                    socket.on('fixerio', function(obj) {
-                        var html_select = $('<select id="selected_local_currency" class="span2" />');
-
-                        for (var key in obj) {
-                            if (obj.hasOwnProperty(key)) {
-                                $('<option />', {value: obj[key]['name'], text: obj[key]['name']}).appendTo(html_select);
+            .span3.text-right
+                form.form-horizontal(id="form_select_currency")
+                    script.
+                        /**
+                         * Populate local currency dropdown selection menu.
+                         */
+                        socket.on('fixerio', function(obj) {
+                            var html_select = $('<select id="selected_local_currency" class="span3" />');
+                            for (var key in obj) {
+                                if (obj.hasOwnProperty(key)) {
+                                    $('<option />', {value: obj[key]['name'], text: obj[key]['name']}).appendTo(html_select);
+                                }
                             }
-                        }
+                            html_select.appendTo('#form_select_currency');
+                            $('<input type="submit" value="Set" class="btn">').appendTo('#form_select_currency');
+                        });
 
-                        html_select.appendTo('#local_currencies');
-                    });
+                        socket.on('local_currency', function(obj) {
+                            var currency = obj[0];
+                            var btc_price = obj[1];
+                            var vnl_average = obj[2];
+                            var local_symbol = '';
+                            var local_decimal = '.';
+                            var local_thousand = ',';
 
-                    socket.on('local_currency', function(obj) {
-                        var currency = obj[0];
-                        var btc_price = obj[1];
-                        var vnl_average = obj[2];
-                        var local_symbol = '';
-                        var local_decimal = '.';
-                        var local_thousand = ',';
-
-                        /**
-                         * Set currency local properties.
-                         *
-                         * TODO: Finish local decimal/thousand separators for all currencies.
-                         */
-                        if (currency == 'AUD' || currency == 'CAD' || currency == 'HKD' || currency == 'NZD' || currency == 'SGD' || currency == 'USD') {
-                            local_symbol = '$';
-                        } else if (currency == 'CNY') {
-                            local_symbol = '元';
-                        } else if (currency == 'GBP') {
-                            local_symbol = '£';
-                        } else if (currency == 'ILS') {
-                            local_symbol = '₪';
-                        } else if (currency == 'INR') {
-                            local_symbol = '₹';
-                        } else if (currency == 'JPY') {
-                            local_symbol = '¥';
-                        } else if (currency == 'KRW') {
-                            local_symbol = '₩';
-                        } else if (currency == 'MXN' || currency == 'PHP') {
-                            local_symbol = '₱';
-                        } else if (currency == 'THB') {
-                            local_symbol = '฿';
-                        } else if (currency == 'TRY') {
-                            local_symbol = '₤';
-                        } else if (currency == 'EUR') {
-                            local_symbol = '€';
-                            local_decimal = ',';
-                            local_thousand = '.';
-                        }
-
-                        /**
-                         * Update #[span#key] elements.
-                         */
-                        $('#vnl_btc').text(accounting.formatMoney(vnl_average, '', 8, ',', '.'));
-                        $('#vnl_local').text(accounting.formatMoney(vnl_average * btc_price, local_symbol, 3, local_thousand, local_decimal) + ' ' + currency);
-                        $('#vnl_local_marketcap').text(accounting.formatMoney(vnl_average * moneysupply * btc_price, local_symbol, 0, local_thousand, local_decimal) + ' ' + currency);
-                        $('#balance_btc').text(accounting.formatMoney(vnl_average * balance, '', 8, ',', '.'));
-                        $('#balance_local').text(accounting.formatMoney(vnl_average * balance * btc_price, local_symbol, 2, local_thousand, local_decimal) + ' ' + currency);
-                    });
-
-                    /**
-                     * Emit new currency to server.
-                     */
-                    $('#button_set_local_currency').click(function() {
-                        socket.emit('set_local_currency', $('#selected_local_currency').val());
-                    });
-            div.span3.text-right
-                p
-                    b #[span#version] &nbsp;&nbsp; Protocol:
-                    | #[span#protocolversion]
-                    b &nbsp;&nbsp; Wallet:
-                    | #[span#walletversion]
-
-        div#wallet_window
-            div.row-fluid
-                div.span1
-                div.span5
-                    div.row-fluid
-                        form.form-horizontal(id="form_transfer")
-                            input.span2(id="transfer_amount", type="text", placeholder="Amount")
-                            input.span6(id="transfer_recipient", type="text", placeholder="A valid address")
-                            input.btn(type="submit", id="button_transfer", value="Send")
-                            input.btn(type="button", id="button_transfer_add_recipient", class="transfer_plus", value="+")
-                        script.
                             /**
-                             * Disable the button until inputs are filled.
+                             * Set currency local properties.
+                             *
+                             * TODO: Finish local decimal/thousand separators for all currencies.
                              */
-                            $('#button_transfer').prop('disabled', true);
-                            $('#form_transfer input').keyup(function() {
-                                var inputs_empty = false;
+                            if (currency == 'AUD' || currency == 'CAD' || currency == 'HKD' || currency == 'NZD' || currency == 'SGD' || currency == 'USD') {
+                                local_symbol = '$';
+                            } else if (currency == 'CNY') {
+                                local_symbol = '元';
+                            } else if (currency == 'GBP') {
+                                local_symbol = '£';
+                            } else if (currency == 'ILS') {
+                                local_symbol = '₪';
+                            } else if (currency == 'INR') {
+                                local_symbol = '₹';
+                            } else if (currency == 'JPY') {
+                                local_symbol = '¥';
+                            } else if (currency == 'KRW') {
+                                local_symbol = '₩';
+                            } else if (currency == 'MXN' || currency == 'PHP') {
+                                local_symbol = '₱';
+                            } else if (currency == 'THB') {
+                                local_symbol = '฿';
+                            } else if (currency == 'TRY') {
+                                local_symbol = '₤';
+                            } else if (currency == 'EUR') {
+                                local_symbol = '€';
+                                local_decimal = ',';
+                                local_thousand = '.';
+                            }
 
-                                $('#form_transfer input').each(function() {
-                                    if ($(this).val().length == 0) {
-                                        inputs_empty = true;
+                            /**
+                             * Update #[span#key] elements.
+                             */
+                            $('#vnl_btc').text(accounting.formatMoney(vnl_average, '', 8, ',', '.'));
+                            $('#vnl_local').text(accounting.formatMoney(vnl_average * btc_price, local_symbol, 3, local_thousand, local_decimal) + ' ' + currency);
+                            $('#vnl_local_marketcap').text(accounting.formatMoney(vnl_average * moneysupply * btc_price, local_symbol, 0, local_thousand, local_decimal) + ' ' + currency);
+                            $('#balance_btc').text(accounting.formatMoney(vnl_average * balance, '', 8, ',', '.'));
+                            $('#balance_local').text(accounting.formatMoney(vnl_average * balance * btc_price, local_symbol, 2, local_thousand, local_decimal) + ' ' + currency);
+                        });
+
+                        /**
+                         * Emit new currency to server.
+                         */
+                        $('#form_select_currency').on('submit', function(e) {
+                            e.preventDefault();
+                            socket.emit('set_local_currency', $('#selected_local_currency').val());
+                        });
+
+        .row-fluid
+            .span1
+            .span10
+                hr
+        #wallet_window
+            .row-fluid
+                .span1
+                .span5
+                    .row-fluid
+                        .span2
+                            h4 TRANSACTIONS
+                        .span10.text-right
+                            form.form-horizontal(id="form_transfer")
+                                input.span2(id="transfer_amount", type="text", placeholder="Amount")
+                                input.span6(id="transfer_recipient", type="text", placeholder="A valid address")
+                                input.btn(type="submit", id="button_transfer", value="Send")
+                                input.btn(type="button", id="button_transfer_add_recipient", class="button_margin_left", value="+")
+                            script.
+                                /**
+                                 * Disable the button until inputs are filled.
+                                 */
+                                $('#button_transfer').prop('disabled', true);
+                                $('#form_transfer input').keyup(function() {
+                                    var inputs_empty = false;
+
+                                    $('#form_transfer input').each(function() {
+                                        if ($(this).val().length == 0) {
+                                            inputs_empty = true;
+                                        }
+                                    });
+
+                                    if (inputs_empty) {
+                                        $('#button_transfer').prop('disabled', true);
+                                    } else {
+                                        $('#button_transfer').prop('disabled', false);
                                     }
                                 });
 
-                                if (inputs_empty) {
-                                    $('#button_transfer').prop('disabled', true);
-                                } else {
-                                    $('#button_transfer').prop('disabled', false);
-                                }
-                            });
-
-                            /**
-                             * Emit new watch address.
-                             */
-                            $('#form_transfer').on('submit', function(e) {
-                                e.preventDefault();
-                                socket.emit('validateaddress', [$('#transfer_recipient').val(), $('#transfer_amount').val()]);
-                            });
-
-                            /**
-                             * If valid ask user to confirm transfer and then sendtoaddress, else do nothing.
-                             */
-                            socket.on('transfer_possible', function(obj) {
-                                var address = obj[0];
-                                var amount = obj[1]
-
-                                if (confirm("Recipient: " + address + "\nAmount: " + amount + "\n\nAre you sure you want to transfer the coins?") == true) {
-                                    socket.emit('sendtoaddress', [address, amount]);
-                                }
-                            });
-
-                div.span5.text-right
-                    script.
-                        /**
-                         * Initial wallet "lock / unlock / encrypt" (passphrase) check.
-                         */
-                        socket.on('wallet_passphrase_check', function(res) {
-                            /**
-                             * error_code_wallet_wrong_enc_state = -15, wallet not encrypted.
-                             */
-                            if (res.code == -15) {
-                                $('#wallet_encrypt').toggleClass('hidden');
-                            }
-                            /**
-                             * error_code_invalid_params = -32602, wallet is encrypted and locked (in this case).
-                             */
-                            else if (res.code == -32602) {
-                                $('#wallet_lock').addClass('hidden');
-                                $('#wallet_unlock').toggleClass('hidden');
-                                $('#sweep_this_private_key').prop('disabled', true);
-                                $('#transfer_amount').prop('disabled', true);
-                                $('#transfer_recipient').prop('disabled', true);
-                                $('#button_transfer').prop('disabled', true);
-                                $('#button_sweep').prop('disabled', true);
-                            }
-                            /**
-                             * error_code_wallet_already_unlocked = -17, wallet unlocked.
-                             */
-                            else if (res.code == -17) {
-                                $('#wallet_unlock').addClass('hidden');
-                                $('#wallet_lock').toggleClass('hidden');
-                                $('#sweep_this_private_key').prop('disabled', false);
-                                $('#transfer_amount').prop('disabled', false);
-                                $('#transfer_recipient').prop('disabled', false);
-                            }
-                        });
-
-                    div.hidden.text-right#wallet_encrypt
-                        form.form-horizontal(id="form_wallet_encrypt")
-                            input.span6(id="encrypt_key", type="text", placeholder="Wallet is unencrypted")
-                            input.btn(type="submit", id="button_encrypt", value="Encrypt")
-                            script.
                                 /**
-                                 * Disable the button until input is filled.
+                                 * Emit new watch address.
                                  */
-                                $('#button_encrypt').prop('disabled', true);
-                                $('#encrypt_key').keyup(function() {
-                                    $('#button_encrypt').prop('disabled', this.value == "" ? true : false);     
-                                });
-
-                                /**
-                                 * Emit key on form submit.
-                                 */
-                                $('#form_wallet_encrypt').on('submit', function(e) {
+                                $('#form_transfer').on('submit', function(e) {
                                     e.preventDefault();
-                                    socket.emit('encryptwallet', $('#encrypt_key').val());
-                                    $('#wallet_encrypt').toggleClass('hidden');
-                                });
-
-                    div.hidden.text-right#wallet_unlock
-                        form.form-horizontal(id="form_wallet_unlock")
-                            input.span6(id="unlock_key", type="text", placeholder="Wallet is locked")
-                            input.btn(type="submit", id="button_unlock", value="Unlock")
-                            script.
-                                /**
-                                 * Disable the button until input is filled.
-                                 */
-                                $('#button_unlock').prop('disabled', true);
-                                $('#unlock_key').keyup(function() {
-                                    $('#button_unlock').prop('disabled', this.value == "" ? true : false);     
+                                    socket.emit('validateaddress', [$('#transfer_recipient').val(), $('#transfer_amount').val()]);
                                 });
 
                                 /**
-                                 * Emit key on form submit.
+                                 * If valid ask user to confirm transfer and then sendtoaddress, else do nothing.
                                  */
-                                $('#form_wallet_unlock').on('submit', function(e) {
-                                    e.preventDefault();
-                                    socket.emit('walletpassphrase', $('#unlock_key').val());
+                                socket.on('transfer_possible', function(obj) {
+                                    var address = obj[0];
+                                    var amount = obj[1]
+
+                                    if (confirm("Recipient: " + address + "\nAmount: " + amount + "\n\nAre you sure you want to transfer the coins?") == true) {
+                                        socket.emit('sendtoaddress', [address, amount]);
+                                    }
                                 });
-
-                    div.hidden.text-right#wallet_lock
-                        input.span6.btn(type='submit', id='button_lock', value='Lock the wallet')
-                        script.
-                            /**
-                             * On "button_lock" click call RPC method walletlock on the server.
-                             */
-                            $("#button_lock").click(function(){
-                                socket.emit('walletlock', true);
-                            });
-
-
-                div.span1
-            div.row-fluid
-                div.span1
-                div.span10
-                    h4 HISTORY
                     script.
                         /**
                          * List complete history.
                          */
                         socket.on('listsinceblock', function(obj) {
                             $('#table_complete_history').empty();
-                            var html_table = $('<table class="table table-striped"><thead><tr><th>Time</th><th>Address</th><th>Category</th><th>Amount</th><th>Conf.</th><th>Block hash</th><th>Block index</th><th>Block time</th><th>txid</th></tr></thead></table>');
+                            var html_table = $('<table class="table table-striped"><thead><tr><th>Time</th><th>Address</th><th>Category</th><th>Amount</th><th>Conf.</th><th>Block hash</th><th>txid</th></tr></thead></table>');
                             var unconfirmed = 0;
 
                             for (key in obj) {
@@ -363,46 +355,16 @@ block content
                                  * Check if tx has been included in a block.
                                  */
                                 if (obj[key].hasOwnProperty('blockhash')) {
-                                    blockhash = '<a href="https://blockchain.vanillacoin.net/block/' + obj[key]['blockhash'] + '" target="_blank">' + obj[key]['blockhash'].substring(0, 25) + '...</a>';
+                                    blockhash = '<a href="https://blockchain.vanillacoin.net/block/' + obj[key]['blockhash'] + '" target="_blank">' + obj[key]['blockhash'].substring(0, 10) + '</a>';
 
                                     /**
                                      * If it's zerotime.. :)
                                      */
                                     if (obj[key]['blockhash'] == "0000000000000000000000000000000000000000000000000000000000000000") {
-                                        blockhash = '-----';
+                                        blockhash = '----------';
                                     }
                                 } else {
-                                    blockhash = '-----';
-                                }
-
-                                /**
-                                 * Check if tx has been included in a block.
-                                 */
-                                if (obj[key].hasOwnProperty('blocktime')) {
-                                    if (obj[key]['blocktime'] != -1) {
-                                        /**
-                                         * Convert ['blocktime'] to miliseconds.
-                                         */
-                                        blocktime = new Date(obj[key]['blocktime'] * 1000);
-                                        blocktime = blocktime.toLocaleDateString() + ' ' + blocktime.toLocaleTimeString();
-                                    } else {
-                                        blocktime = '-----';
-                                    }
-                                } else {
-                                    blocktime = '-----';
-                                }
-
-                                /**
-                                 * Check if tx has been included in a block.
-                                 */
-                                if (obj[key].hasOwnProperty('blockindex')) {
-                                    if (obj[key]['blockindex'] != -1) {
-                                        blockindex = obj[key]['blockindex'];
-                                    } else {
-                                        blockindex = '-----';
-                                    }
-                                } else {
-                                    blockindex = '-----';
+                                    blockhash = '----------';
                                 }
 
                                 /**
@@ -417,7 +379,7 @@ block content
                                  */
                                 var timereceived = new Date(obj[key]['timereceived'] * 1000);
 
-                                html_table.append('<tr><td>' + timereceived.toLocaleDateString() + ' ' + timereceived.toLocaleTimeString() + '</td><td><a href="https://blockchain.vanillacoin.net/address/' + obj[key]['address'] + '" target="_blank">' + obj[key]['address'] + '</a></td><td>' + obj[key]['category'] + '</td><td>' + obj[key]['amount'] + '</td><td>' + obj[key]['confirmations'] + '</td><td>' + blockhash + '</td><td>' + blockindex + '</td><td>' + blocktime + '</td><td><a href="https://blockchain.vanillacoin.net/tx/' + obj[key]['txid'] + '" target="_blank">' + obj[key]['txid'].substring(0, 25) + '...</a></td></tr>');
+                                html_table.append('<tr><td>' + timereceived.toLocaleDateString() + ' ' + timereceived.toLocaleTimeString() + '</td><td><a href="https://blockchain.vanillacoin.net/address/' + obj[key]['address'] + '" target="_blank">' + obj[key]['address'].substring(0,10) + '</a></td><td>' + obj[key]['category'] + '</td><td>' + obj[key]['amount'] + '</td><td>' + obj[key]['confirmations'] + '</td><td>' + blockhash + '</td><td><a href="https://blockchain.vanillacoin.net/tx/' + obj[key]['txid'] + '" target="_blank">' + obj[key]['txid'].substring(0, 10) + '</a></td></tr>');
                             }
 
                             $('#table_complete_history').append(html_table);
@@ -425,16 +387,50 @@ block content
                         });
 
                     .row-fluid #[span#table_complete_history]
-                div.span1
+                .span5
+                    .row-fluid
+                        div.span1
+                            h4 ADDRESSES
+                        div.span11.text-right
+                            form.form-horizontal(id="form_sweep_private_key")
+                                input.span8(id="sweep_this_private_key", type="text", placeholder="Sweep a valid private key")
+                                input.btn(type="submit", id="button_sweep", value="Sweep")
+                                input.btn(type='button', id='button_new_address', class="button_margin_left", value='New')
 
-            div.row-fluid
-                div.span1
-                div.span5
-                    div.row-fluid
-                        div.span6
-                            h4 RECEIVING ADDRESSES
-                        div.span6.text-right
-                            input.btn(type='submit', id='button_new_address', value='New')
+                                script.
+                                    /**
+                                     * Disable the button until input is filled.
+                                     */
+                                    $('#button_sweep').prop('disabled', true);
+                                    $('#sweep_this_private_key').keyup(function() {
+                                        $('#button_sweep').prop('disabled', this.value == "" ? true : false);     
+                                    });
+
+                                    /**
+                                     * Emit "sweep_this_private_key" on submit.
+                                     */
+                                    $('#form_sweep_private_key').on('submit', function(e) {
+                                        e.preventDefault();
+
+                                       /**
+                                        * Disable the button again to prevent multiple submissions (it takes a few seconds to get a response from the wallet).
+                                        */
+                                        $('#button_sweep').prop('disabled', true);
+
+                                        /**
+                                         * Enable the button after 6 seconds, this (should) give enough time for the wallet to respond.
+                                         */
+                                        setTimeout(function() {
+                                             $('#button_sweep').prop('disabled', false);
+                                        }, 6000);
+
+                                        /**
+                                         * Call RPC method importprivkey on the server.
+                                         */
+                                        socket.emit('importprivkey', $('#sweep_this_private_key').val());
+                                    });
+
+                            
                             script.
                                 /**
                                  * On "button_new_address" click call RPC method getnewaddress on the server.
@@ -449,7 +445,7 @@ block content
                                 socket.on('listreceivedbyaddress', function(obj) {
                                     $('#table_wallet_addresses').empty();
 
-                                    var html_table = $('<table class="table table-striped"><thead><tr><th>Address</th><th>Confirmations</th><th>Received</th></tr></thead></table>');
+                                    var html_table = $('<table class="table table-striped"><thead><tr><th>Address</th><th>Conf.</th><th>Received</th></tr></thead></table>');
                                     var address = '';
 
                                     for (key in obj) {
@@ -465,103 +461,63 @@ block content
                                     $('#table_wallet_addresses').append(html_table);
                                 });
 
-                        .row-fluid #[span#table_wallet_addresses]
-                    div.row-fluid.text-right
-                        form.form-horizontal(id="form_sweep_private_key")
-                            input.span6(id="sweep_this_private_key", type="text", placeholder="Sweep a valid private key")
-                            input.btn(type="submit", id="button_sweep", value="Sweep")
-
-                            script.
-                                /**
-                                 * Disable the button until input is filled.
-                                 */
-                                $('#button_sweep').prop('disabled', true);
-                                $('#sweep_this_private_key').keyup(function() {
-                                    $('#button_sweep').prop('disabled', this.value == "" ? true : false);     
-                                });
-
-                                /**
-                                 * Emit "sweep_this_private_key" on submit.
-                                 */
-                                $('#form_sweep_private_key').on('submit', function(e) {
-                                    e.preventDefault();
-
-                                   /**
-                                    * Disable the button again to prevent multiple submissions (it takes a few seconds to get a response from the wallet).
-                                    */
-                                    $('#button_sweep').prop('disabled', true);
-
+                    .row-fluid #[span#table_wallet_addresses]
+                    .row-fluid
+                        .span3
+                            h4 WATCH ADDRESSES
+                        .span9.text-right
+                            form.form-horizontal(id="form_add_watch_address")
+                                input.span2(id="watch_address_title", type="text", placeholder="Title")
+                                input.span8(id="watch_address", type="text", placeholder="A valid address")
+                                input.btn(type="submit", id="button_add_watch_address", value="Add")
+                                script.
                                     /**
-                                     * Enable the button after 6 seconds, this (should) give enough time for the wallet to respond.
+                                     * Disable the button until inputs are filled.
                                      */
-                                    setTimeout(function() {
-                                         $('#button_sweep').prop('disabled', false);
-                                    }, 6000);
+                                    $('#button_add_watch_address').prop('disabled', true);
+                                    $('#form_add_watch_address input').keyup(function() {
+                                        var inputs_empty = false;
 
-                                    /**
-                                     * Call RPC method importprivkey on the server.
-                                     */
-                                    socket.emit('importprivkey', $('#sweep_this_private_key').val());
-                                });
-                div.span5
-                    div.row-fluid
-                        h4 WATCH ONLY ADDRESSES
-                        script.
-                            /**
-                             * List all watch addresses saved in config.json.
-                             */
-                            socket.on('watchaddresses', function(obj) {
-                                $('#table_watch_addresses').empty();
-                                var html_table = $('<table class="table table-striped"><thead><tr><th>Address</th><th>Title</th><th>Balance</th></tr></thead></table>');
-
-                                for (key in obj) {
-                                    html_table.append('<tr><td><a href="https://blockchain.vanillacoin.net/address/' + obj[key]['address'] + '" target="_blank">' + obj[key]['address'] + '</a></td><td>' + obj[key]['title'] + '</td><td>' + obj[key]['balance'] + '</td></tr>');
-                                }
-
-                                $('#table_watch_addresses').append(html_table);
-                            });
-
-                        .row-fluid #[span#table_watch_addresses]                            
-                        div.row-fluid
-                            div.text-right
-                                form.form-horizontal(id="form_add_watch_address")
-                                    input.span2(id="watch_address_title", type="text", placeholder="Title")
-                                    input.span6(id="watch_address", type="text", placeholder="A valid address")
-                                    input.btn(type="submit", id="button_add_watch_address", value="Add")
-                                    script.
-                                        /**
-                                         * Disable the button until inputs are filled.
-                                         */
-                                        $('#button_add_watch_address').prop('disabled', true);
-                                        $('#form_add_watch_address input').keyup(function() {
-                                            var inputs_empty = false;
-
-                                            $('#form_add_watch_address input').each(function() {
-                                                if ($(this).val().length == 0) {
-                                                    inputs_empty = true;
-                                                }
-                                            });
-
-                                            if (inputs_empty) {
-                                                $('#button_add_watch_address').prop('disabled', true);
-                                            } else {
-                                                $('#button_add_watch_address').prop('disabled', false);
+                                        $('#form_add_watch_address input').each(function() {
+                                            if ($(this).val().length == 0) {
+                                                inputs_empty = true;
                                             }
                                         });
 
-                                        /**
-                                         * Emit new watch address.
-                                         */
-                                        $('#form_add_watch_address').on('submit', function(e) {
-                                            e.preventDefault();
-                                            socket.emit('addwatchaddress', [$('#watch_address').val(), $('#watch_address_title').val()]);
-                                        });
-                div.span1
+                                        if (inputs_empty) {
+                                            $('#button_add_watch_address').prop('disabled', true);
+                                        } else {
+                                            $('#button_add_watch_address').prop('disabled', false);
+                                        }
+                                    });
 
-            div.row-fluid
-                div.span1
-                div.span5
-                    h4 POLONIEX TRADE HISTORY
+                                    /**
+                                     * Emit new watch address.
+                                     */
+                                    $('#form_add_watch_address').on('submit', function(e) {
+                                        e.preventDefault();
+                                        socket.emit('addwatchaddress', [$('#watch_address').val(), $('#watch_address_title').val()]);
+                                    });
+                    script.
+                        /**
+                         * List all watch addresses saved in config.json.
+                         */
+                        socket.on('watchaddresses', function(obj) {
+                            $('#table_watch_addresses').empty();
+                            var html_table = $('<table class="table table-striped"><thead><tr><th>Address</th><th>Title</th><th>Balance</th></tr></thead></table>');
+
+                            for (key in obj) {
+                                html_table.append('<tr><td><a href="https://blockchain.vanillacoin.net/address/' + obj[key]['address'] + '" target="_blank">' + obj[key]['address'] + '</a></td><td>' + obj[key]['title'] + '</td><td>' + obj[key]['balance'] + '</td></tr>');
+                            }
+
+                            $('#table_watch_addresses').append(html_table);
+                        });
+
+                    .row-fluid #[span#table_watch_addresses]                            
+            .row-fluid
+                .span1
+                .span5
+                    h4 LATEST POLONIEX TRADES
                     script.
                         /**
                          * List last 200 trades from Poloniex.
@@ -579,8 +535,8 @@ block content
                         });
 
                     .row-fluid.tradehistory #[span#trade_history_poloniex]
-                div.span5
-                    h4 BITTREX TRADE HISTORY
+                .span5
+                    h4 LATEST BITTREX TRADES
                     script.
                         /**
                          * List last 50 trades from Bittrex.
@@ -597,101 +553,159 @@ block content
                         });
 
                     .row-fluid.tradehistory #[span#trade_history_bittrex]
+        #history_window.hidden
+            div.container-fluid
 
-    div.hidden#history_window
-        div.container-fluid
+        #incentive_window.hidden
+            .row-fluid
+                .span1
+                .span2
+                    script.
+                        /**
+                         * Update UDP connections.
+                         */
+                        socket.on('udp_connections', function(obj) {
+                            $('#udp_connections').text(obj);
+                        });
 
-    div.hidden#incentive_window
-        div.row-fluid
-            script.
-                /**
-                 * Update UDP connections.
-                 */
-                socket.on('udp_connections', function(obj) {
-                    $('#udp_connections').text(obj);
-                });
+                        /**
+                         * Update with information received from RPC method 'getincentiveinfo'.
+                         */
+                        socket.on('getincentiveinfo', function(obj) {
+                            /**
+                             * Update #[span#key] elements.
+                             */
+                            for (var key in obj) {
+                                if (obj.hasOwnProperty(key)) {
+                                    $("#" + key).text(obj[key]);
+                                }
+                            }
+                        });
 
-                /**
-                 * Update with information received from RPC method 'getincentiveinfo'.
-                 */
-                socket.on('getincentiveinfo', function(obj) {
-                    /**
-                     * Update #[span#key] elements.
-                     */
-                    for (var key in obj) {
-                        if (obj.hasOwnProperty(key)) {
-                            $("#" + key).text(obj[key]);
-                        }
-                    }
-                });
+                    h4 VOTE CANDIDATE: #[span#votecandidate]
+                    p #[span#ip]
+                        b :
+                        | #[span#port] (
+                        b #[span#networkstatus]
+                        | )
+                    p
+                        b TCP: 
+                        | #[span#connections]
+                        b &nbsp;&nbsp; UDP: 
+                        | #[span#udp_connections]
+                    p
+                        b Collateral: 
+                        | #[span#collateralbalance] / #[span#collateralrequired]
 
-            div.row-fluid
-                div.span3
-                div.span2
-                    p Blocks: #[span#blocks]
-                    p Difficulty: #[span#difficulty]
-                    p Coin supply: #[span#moneysupply]
-                div.span2
-                    p Collateral: #[span#collateralbalance]/#[span#collateralrequired]
-                    p Vote candidate: #[span#votecandidate]
-                    p Vote score: #[span#votescore]
-                div.span3
-                    p #[span#ip]:#[span#port] (#[span#networkstatus])
-                    p TCP #[span#connections] &nbsp&nbsp; UDP #[span#udp_connections]
-                    p Transaction fee: #[span#paytxfee]
-            h4 INCENTIVE INFO
-            div.row-fluid
-                div.span4
+                    p
+                        b Vote score: 
+                        | #[span#votescore]
+                    hr
                     h4 TODO: SHOW LATEST REWARDS
-                    div.row-fluid
-                        div.span8
-                            h4 #[span#estimate_blocktime]
-                        div.span4.text-right
-                            form.form-horizontal(id="form_estimate_blocktime")
-                                input.span5(id="block_number", type="text", placeholder="Block #")
-                                input.btn(type="submit", value="Calculate")
-                                script.
-                                    $('#estimate_blocktime').text('ESTIMATE BLOCK TIME');
-                                    var timeout_timer = null;
+                .span6
+                    h4 TODO: GRAPH LATEST REWARDS
+                    hr
+                    .row-fluid
+                        .span6
+                            .row-fluid
+                                .span6
+                                    h4 ESTIMATE BLOCK TIME
+                                .span6.text-right
+                                    form.form-horizontal(id="form_estimate_blocktime")
+                                        input.span5(id="block_number", type="text", placeholder="Block #")
+                                        input.btn(type="submit", value="Calculate")
+                                        script.
 
-                                    $('#form_estimate_blocktime').on('submit', function(e) {
-                                        e.preventDefault();
+                                            $('#form_estimate_blocktime').on('submit', function(e) {
+                                                e.preventDefault();
 
-                                        var time_per_block = 111;
-                                        var future_block = $('#block_number').val();
-                                        var estimate = new Date();
+                                                var time_per_block = 111;
+                                                var future_block = parseInt($('#block_number').val());
+                                                var estimate = new Date();
 
-                                        if (future_block - blocks > 0) {
-                                            estimate.setSeconds(estimate.getSeconds() + (future_block - blocks) * time_per_block);
+                                                if (future_block - blocks > 0) {
+                                                    estimate.setSeconds(estimate.getSeconds() + (future_block - blocks) * time_per_block);
 
-                                            /**
-                                             * Calculate %.
-                                             */
-                                            socket.emit('calculate_percentage', future_block);
+                                                    /**
+                                                     * Calculate %.
+                                                     */
+                                                    socket.emit('calculate_percentage', future_block);
 
-                                            /**
-                                             * Update text with % and estimated time.
-                                             */
-                                            socket.on('return_percentage', function(obj) {
-                                                $("#estimate_blocktime").text(obj + '% EST. ON ' + estimate.toLocaleDateString() + ' ' + estimate.toLocaleTimeString());
+                                                    /**
+                                                     * Calculate PoW reward (from https://github.com/john-connor/vanillacoin/blob/master/src/reward.cpp)
+                                                     */
+                                                    subsidy = 128;
+
+                                                    for (i = 50000; i <= future_block; i += 50000) {
+                                                        subsidy -= subsidy / 6;
+                                                    }
+
+                                                    /**
+                                                     * Update text with % and estimated time.
+                                                     */
+                                                    socket.on('return_percentage', function(obj) {
+                                                        $('#future_block_percentage').text(obj + '%');
+                                                        $('#incentive_reward').text(((subsidy / 100) * obj).toFixed(6));
+                                                    });
+
+                                                    if ($('#estimate_blocktime').hasClass('hidden')) {
+                                                        $("#estimate_blocktime").toggleClass('hidden');
+                                                    }
+
+                                                    $('#pow_reward').text(subsidy.toFixed(6));
+                                                    $('#future_block_already_submitted').text('');
+                                                    $("#future_block").text(future_block);
+                                                    $("#future_block_estimated_time").text(estimate.toLocaleDateString() + ' ' + estimate.toLocaleTimeString());
+                                                } else {
+                                                    $('#future_block_already_submitted').text('BLOCK ALREADY SUBMITTED');
+
+                                                    if (!$('#estimate_blocktime').hasClass('hidden')) {
+                                                        $("#estimate_blocktime").toggleClass('hidden');
+                                                    }
+                                                }
                                             });
 
-                                            /**
-                                             * Reset text after 1 minute & cancel any previous timers.
-                                             */
-                                            if (timeout_timer) {
-                                                clearTimeout(timeout_timer);
-                                            }
+                                p #[span#future_block_already_submitted]
 
-                                            timeout_timer = setTimeout(function() {
-                                                $('#estimate_blocktime').text('ESTIMATE BLOCK TIME');
-                                            }, 60000);
-                                        } else {
-                                            $('#estimate_blocktime').text('BLOCK ALREADY SUBMITTED');
-                                            setTimeout(function() {
-                                                $('#estimate_blocktime').text('ESTIMATE BLOCK TIME');
-                                            }, 1100);
-                                        }
-                                    });
-                div.span8
-                    h4 TODO: Graph displaying rewards per day
+                                #estimate_blocktime.hidden
+                                    p
+                                        b Block: 
+                                        | #[span#future_block]
+                                    p
+                                        b PoW reward: 
+                                        | #[span#pow_reward]
+                                    p
+                                        b Incentive reward: 
+                                        | #[span#incentive_reward] (
+                                        b #[span#future_block_percentage]
+                                        | )
+                                    p
+                                        b Date: 
+                                        | #[span#future_block_estimated_time]
+
+                        .span6
+                            h4 TODO: CONVERSION CALCULATOR
+                .span2
+                    script.
+                        /**
+                         * Get incentive percentages
+                         */
+                        socket.on('incentive_percentages', function(obj) {
+                            $('#incentive_percentages').empty();
+                            var html_table = $('<table class="table table-striped"><thead><tr><th>From block</th><th>Up to block</th><th>Reward</th></tr></thead></table>');
+
+                            for (key in obj) {
+                                if (obj[parseInt(key)+1] != undefined) {
+                                    var block_number = obj[parseInt(key)+1]['block_height'];
+                                } else {
+                                    var block_number = '----------';
+                                }
+
+                                html_table.append('<tr><td>' + obj[key]['block_height'] +'</td><td>' + block_number + '</td><td>' + obj[key]['percentage'] + '%</td></tr>');
+                            }
+
+                            $('#incentive_percentages').append(html_table);
+                        });
+
+                    h4.text-right CURRENT BLOCK: #[span#blocks]
+                    .row-fluid #[span#incentive_percentages]
