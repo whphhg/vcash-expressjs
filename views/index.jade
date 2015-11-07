@@ -37,6 +37,8 @@ block content
             alert(text);
         });
 
+        moneysupply = 0;
+
         /**
          * Update #[span#key] elements with information received from RPC 'getinfo'.
          */
@@ -175,8 +177,6 @@ block content
                      * Show node incentive info on "button_node_incentives" click.
                      */
                     $("#button_node_incentives").click(function() {
-                        socket.emit('get_incentive_percentages', true);
-
                         /**
                          * Handle clicks between "Complete history" and "Incentive info" buttons to correctly hide and show wallet "windows".
                          */
@@ -227,19 +227,24 @@ block content
                             $('<input type="submit" value="Set" class="btn">').appendTo('#form_select_currency');
                         });
 
-                        socket.on('local_currency', function(obj) {
-                            var currency = obj[0];
-                            var btc_price = obj[1];
-                            var vnl_average = obj[2];
+                        /**
+                         * Emit new currency to server.
+                         */
+                        $('#form_select_currency').on('submit', function(e) {
+                            e.preventDefault();
+                            socket.emit('set_local_currency', $('#selected_local_currency').val());
+                        });
+
+                        /**
+                         * Return currency local properties.
+                         *
+                         * TODO: Finish local decimal/thousand separators for all currencies.
+                         */
+                        function local_currency_params(currency) {
                             var local_symbol = '';
                             var local_decimal = '.';
                             var local_thousand = ',';
 
-                            /**
-                             * Set currency local properties.
-                             *
-                             * TODO: Finish local decimal/thousand separators for all currencies.
-                             */
                             if (currency == 'AUD' || currency == 'CAD' || currency == 'HKD' || currency == 'NZD' || currency == 'SGD' || currency == 'USD') {
                                 local_symbol = '$';
                             } else if (currency == 'CNY') {
@@ -266,22 +271,30 @@ block content
                                 local_thousand = '.';
                             }
 
+                            return {"symbol":local_symbol, "decimal":local_decimal, "thousand":local_thousand};
+                        }
+
+                        local_currency = ['',0,0];
+
+                        socket.on('local_currency', function(obj) {
+                            var currency = obj[0];
+                            var btc_price = obj[1];
+                            var vnl_average = obj[2];
+                            var local_params = local_currency_params(currency);
+
+                            /**
+                             * Global var for local currency calculations elsewhere
+                             */
+                            local_currency = obj;
+
                             /**
                              * Update #[span#key] elements.
                              */
                             $('#vnl_btc').text(accounting.formatMoney(vnl_average, '', 8, ',', '.'));
-                            $('#vnl_local').text(accounting.formatMoney(vnl_average * btc_price, local_symbol, 3, local_thousand, local_decimal) + ' ' + currency);
-                            $('#vnl_local_marketcap').text(accounting.formatMoney(vnl_average * moneysupply * btc_price, local_symbol, 0, local_thousand, local_decimal) + ' ' + currency);
+                            $('#vnl_local').text(accounting.formatMoney(vnl_average * btc_price, local_params['symbol'], 3, local_params['thousand'], local_params['decimal']) + ' ' + currency);
+                            $('#vnl_local_marketcap').text(accounting.formatMoney(vnl_average * moneysupply * btc_price, local_params['symbol'], 0, local_params['thousand'], local_params['decimal']) + ' ' + currency);
                             $('#balance_btc').text(accounting.formatMoney(vnl_average * balance, '', 8, ',', '.'));
-                            $('#balance_local').text(accounting.formatMoney(vnl_average * balance * btc_price, local_symbol, 2, local_thousand, local_decimal) + ' ' + currency);
-                        });
-
-                        /**
-                         * Emit new currency to server.
-                         */
-                        $('#form_select_currency').on('submit', function(e) {
-                            e.preventDefault();
-                            socket.emit('set_local_currency', $('#selected_local_currency').val());
+                            $('#balance_local').text(accounting.formatMoney(vnl_average * balance * btc_price, local_params['symbol'], 2, local_params['thousand'], local_params['decimal']) + ' ' + currency);
                         });
 
         .row-fluid
@@ -347,8 +360,9 @@ block content
                          */
                         socket.on('listsinceblock', function(obj) {
                             $('#table_complete_history').empty();
-                            var html_table = $('<table class="table table-striped"><thead><tr><th>Time</th><th>Address</th><th>Category</th><th>Amount</th><th>Conf.</th><th>Block hash</th><th>txid</th></tr></thead></table>');
+                            var html_table = $('<table class="table table-striped"><thead><tr><th>Time</th><th>Address</th><th>Category</th><th>Amount</th><th></th><th>Conf.</th><th>Block hash</th><th>txid</th></tr></thead></table>');
                             var unconfirmed = 0;
+                            var local_params = local_currency_params(local_currency[0]);
 
                             for (key in obj) {
                                 /**
@@ -379,7 +393,7 @@ block content
                                  */
                                 var timereceived = new Date(obj[key]['timereceived'] * 1000);
 
-                                html_table.append('<tr><td>' + timereceived.toLocaleDateString() + ' ' + timereceived.toLocaleTimeString() + '</td><td><a href="https://blockchain.vanillacoin.net/address/' + obj[key]['address'] + '" target="_blank">' + obj[key]['address'].substring(0,10) + '</a></td><td>' + obj[key]['category'] + '</td><td>' + obj[key]['amount'] + '</td><td>' + obj[key]['confirmations'] + '</td><td>' + blockhash + '</td><td><a href="https://blockchain.vanillacoin.net/tx/' + obj[key]['txid'] + '" target="_blank">' + obj[key]['txid'].substring(0, 10) + '</a></td></tr>');
+                                html_table.append('<tr><td>' + timereceived.toLocaleDateString() + ' ' + timereceived.toLocaleTimeString() + '</td><td><a href="https://blockchain.vanillacoin.net/address/' + obj[key]['address'] + '" target="_blank">' + obj[key]['address'].substring(0,10) + '</a></td><td>' + obj[key]['category'] + '</td><td>' + obj[key]['amount'] + '</td><td>' + accounting.formatMoney(obj[key]['amount'] * local_currency[1] * local_currency[2], local_params['symbol'], 2, local_params['thousand'], local_params['decimal']) + ' ' + local_currency[0] + '</td><td>' + obj[key]['confirmations'] + '</td><td>' + blockhash + '</td><td><a href="https://blockchain.vanillacoin.net/tx/' + obj[key]['txid'] + '" target="_blank">' + obj[key]['txid'].substring(0, 5) + '</a></td></tr>');
                             }
 
                             $('#table_complete_history').append(html_table);
@@ -445,8 +459,9 @@ block content
                                 socket.on('listreceivedbyaddress', function(obj) {
                                     $('#table_wallet_addresses').empty();
 
-                                    var html_table = $('<table class="table table-striped"><thead><tr><th>Address</th><th>Conf.</th><th>Received</th></tr></thead></table>');
+                                    var html_table = $('<table class="table table-striped"><thead><tr><th>Address</th><th>Conf.</th><th>Received</th><th></th></tr></thead></table>');
                                     var address = '';
+                                    var local_params = local_currency_params(local_currency[0]);
 
                                     for (key in obj) {
                                         if (obj[key]['confirmations'] > 0) {
@@ -455,7 +470,7 @@ block content
                                             address = obj[key]['address'];
                                         }
 
-                                        html_table.append('<tr><td>' + address + '</td><td>' + obj[key]['confirmations'] + '</td><td>' + obj[key]['amount'] + '</td></tr>');
+                                        html_table.append('<tr><td>' + address + '</td><td>' + obj[key]['confirmations'] + '</td><td>' + obj[key]['amount'] + '</td><td>' + accounting.formatMoney(obj[key]['amount'] * local_currency[1] * local_currency[2], local_params['symbol'], 2, local_params['thousand'], local_params['decimal']) + ' ' + local_currency[0] + '</td></tr>');
                                     }
 
                                     $('#table_wallet_addresses').append(html_table);
@@ -504,10 +519,12 @@ block content
                          */
                         socket.on('watchaddresses', function(obj) {
                             $('#table_watch_addresses').empty();
-                            var html_table = $('<table class="table table-striped"><thead><tr><th>Address</th><th>Title</th><th>Balance</th></tr></thead></table>');
+
+                            var html_table = $('<table class="table table-striped"><thead><tr><th>Address</th><th>Title</th><th>Balance</th><th></th></tr></thead></table>');
+                            var local_params = local_currency_params(local_currency[0]);
 
                             for (key in obj) {
-                                html_table.append('<tr><td><a href="https://blockchain.vanillacoin.net/address/' + obj[key]['address'] + '" target="_blank">' + obj[key]['address'] + '</a></td><td>' + obj[key]['title'] + '</td><td>' + obj[key]['balance'] + '</td></tr>');
+                                html_table.append('<tr><td><a href="https://blockchain.vanillacoin.net/address/' + obj[key]['address'] + '" target="_blank">' + obj[key]['address'] + '</a></td><td>' + obj[key]['title'] + '</td><td>' + obj[key]['balance'] + '</td><td>' + accounting.formatMoney(parseFloat(obj[key]['balance']) * local_currency[1] * local_currency[2], local_params['symbol'], 2, local_params['thousand'], local_params['decimal']) + ' ' + local_currency[0] + '</td></tr>');
                             }
 
                             $('#table_watch_addresses').append(html_table);
@@ -641,7 +658,7 @@ block content
                                                     }
 
                                                     /**
-                                                     * Update text with % and estimated time.
+                                                     * Update text with % and incentive reward (in coins).
                                                      */
                                                     socket.on('return_percentage', function(obj) {
                                                         $('#future_block_percentage').text(obj + '%');
@@ -665,7 +682,7 @@ block content
                                                 }
                                             });
 
-                                p #[span#future_block_already_submitted]
+                                #[span#future_block_already_submitted]
 
                                 #estimate_blocktime.hidden
                                     p

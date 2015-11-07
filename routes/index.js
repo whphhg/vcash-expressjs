@@ -65,6 +65,7 @@ io.on('connection', function(socket) {
         "btc_local":0,
         "vnl_poloniex":0,
         "vnl_bittrex":0,
+        "vnl_average":0,
         "incentive_percentages":[{"block_height":246900, "percentage":13},
                                  {"block_height":252000, "percentage":14},
                                  {"block_height":257600, "percentage":15},
@@ -96,9 +97,7 @@ io.on('connection', function(socket) {
     /**
      * Emit incentive percentages
      */
-    socket.on('get_incentive_percentages', function() {
-        socket.emit('incentive_percentages', vars['incentive_percentages']);
-    });
+    socket.emit('incentive_percentages', vars['incentive_percentages']);
 
     /**
      * Save new local currency to config.json & update
@@ -111,8 +110,14 @@ io.on('connection', function(socket) {
                 return;
             }
 
+            /**
+             * Update local currencies accros the page
+             */
             vars['local_currency'] = currency;
             update_prices(currency);
+            RPC_listreceivedbyaddress();
+            RPC_listsinceblock();
+            socket.emit('watchaddresses', vars['watch_addresses']);
         });
     });
 
@@ -329,7 +334,11 @@ io.on('connection', function(socket) {
      * Update prices across the page with supplied local currency
      */
     function update_prices(currency) {
-        var vnl_average = (vars['vnl_bittrex'] + vars['vnl_poloniex']) / 2;
+        if (vars['vnl_poloniex'] != 0 && vars['vnl_bittrex'] != 0) {
+            vars['vnl_average'] = (vars['vnl_poloniex'] + vars['vnl_bittrex']) / 2;
+        } else {
+            vars['vnl_average'] = vars['vnl_poloniex'] + vars['vnl_bittrex'];
+        }
 
         for (var key in vars['currencies']) {
             if (vars['currencies'][key]['name'] == currency) {
@@ -338,7 +347,7 @@ io.on('connection', function(socket) {
             }
         }
 
-        socket.emit('local_currency', [vars['local_currency'], vars['btc_local'], vnl_average]);
+        socket.emit('local_currency', [vars['local_currency'], vars['btc_local'], vars['vnl_average']]);
     }
 
     /**
@@ -544,14 +553,42 @@ io.on('connection', function(socket) {
     HTTPS_fixerio();
 
     /**
-     * Update prices to local currency set in nconf 2.5 seconds after client connects and after that every minute
+     * Update exchange trade histories when a client connects and after that every minute
+     */
+    (function update() {
+        HTTPS_poloniextradehistory();
+        HTTPS_bittrextradehistory();
+
+        setTimeout(update, 60000);
+    })();
+
+    /**
+     * Update watch address data when a client connects and after that every 5 minutes
+     */
+    (function update() {
+        HTTPS_getwatchaddresses();
+
+        setTimeout(update, 300000);
+    })();
+
+    /**
+     * Update local currencies with default values (0)
+     */
+    update_prices(vars['local_currency']);
+
+    /**
+     * Update prices to local currency set in nconf 2 seconds after client connects and after that every minute
      */
     setTimeout(function() {
         (function update() {
             update_prices(vars['local_currency']);
             setTimeout(update, 60000);
         })();
-    }, 2500);
+
+        RPC_listreceivedbyaddress();
+        RPC_listsinceblock();
+        socket.emit('watchaddresses', vars['watch_addresses']);
+    }, 2000);
 
     /**
      * Update price for 1 BTC in local currency 1 second after client connects and after that every hour
@@ -605,25 +642,6 @@ io.on('connection', function(socket) {
         RPC_listreceivedbyaddress();
 
         setTimeout(update, 10000);
-    })();
-
-    /**
-     * Update exchange trade histories when a client connects and after that every minute
-     */
-    (function update() {
-        HTTPS_poloniextradehistory();
-        HTTPS_bittrextradehistory();
-
-        setTimeout(update, 60000);
-    })();
-
-    /**
-     * Update watch address data when a client connects and after that every 5 minutes
-     */
-    (function update() {
-        HTTPS_getwatchaddresses();
-
-        setTimeout(update, 300000);
     })();
 });
 
