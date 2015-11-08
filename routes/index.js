@@ -53,11 +53,6 @@ var extend = require('node.extend');
 var request = require('request');
 
 /**
- * QR code module
- */
-var qrCode = require('qrcode-npm')
-
-/**
  * Run when a client connects
  */
 io.on('connection', function(socket) {
@@ -108,9 +103,9 @@ io.on('connection', function(socket) {
      * Create and emit QR code
      */
     socket.on('qr_code_create', function(obj) {
-        var qr = qrCode.qrcode(4, 'M');
-        qr.addData(obj);
-        qr.make();
+        var qr = require('qrcode-npm').qrcode(4, 'M');
+            qr.addData(obj);
+            qr.make();
 
         socket.emit('qr_code_return', qr.createImgTag(4));
     });
@@ -239,12 +234,21 @@ io.on('connection', function(socket) {
         client.call({"jsonrpc": "2.0", "method": "validateaddress", "params": [address], "id": 0}, function (err, res) {
             if (err) { console.log(err); }
 
-            if (res.result['isvalid'] && !res.result['ismine']) {
-                /**
-                 * Add new watch address object into config.json
-                 */
-                var configaddresses = nconf.get('watchaddresses');
-                    configaddresses.push({"address":address, "title":title});
+            var already_added = false;
+            var configaddresses = nconf.get('watchaddresses');
+
+            /**
+             * Check if the address is already saved
+             */
+            for (var key in configaddresses) {
+                if (configaddresses[key]['address'] == address) {
+                    already_added = true;
+                    break;
+                }
+            }
+
+            if (res.result['isvalid'] && !res.result['ismine'] && !already_added) {
+                configaddresses.push({"address":address, "title":title});
 
                 nconf.set('watchaddresses', configaddresses);
                 nconf.save(function(err) {
@@ -265,6 +269,8 @@ io.on('connection', function(socket) {
                 HTTPS_getwatchaddresses();
             } else if (res.result['ismine']) {
                 socket.emit('alerts', "The watch only address you've entered is already in your wallet.");
+            } else if (already_added) {
+                socket.emit('alerts', "The watch only address you've entered is already on the list.");
             } else {
                 socket.emit('alerts', "The watch only address you've entered is not a valid address.");
             }
