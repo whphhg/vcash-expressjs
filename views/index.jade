@@ -483,8 +483,9 @@ block content
                         .span9.text-right
                             form.form-horizontal(id="form_add_watch_address")
                                 input.span2(id="watch_address_title", type="text", placeholder="Title")
-                                input.span8(id="watch_address", type="text", placeholder="A valid address")
+                                input.span7(id="watch_address", type="text", placeholder="A valid address")
                                 input.btn(type="submit", id="button_add_watch_address", value="Add")
+                                input.btn(type='button', id='button_refresh_watch_addresses', class="button_margin_left", value='Refresh')
                                 script.
                                     /**
                                      * Disable the button until inputs are filled.
@@ -512,6 +513,13 @@ block content
                                     $('#form_add_watch_address').on('submit', function(e) {
                                         e.preventDefault();
                                         socket.emit('addwatchaddress', [$('#watch_address').val(), $('#watch_address_title').val()]);
+                                    });
+
+                                    /**
+                                     * Refresh watch only addresses
+                                     */
+                                    $('#button_refresh_watch_addresses').click(function() {
+                                        socket.emit('refresh_watch_addresses', true);
                                     });
                     script.
                         /**
@@ -685,23 +693,133 @@ block content
                                 #[span#future_block_already_submitted]
 
                                 #estimate_blocktime.hidden
-                                    p
-                                        b Block: 
-                                        | #[span#future_block]
-                                    p
-                                        b PoW reward: 
-                                        | #[span#pow_reward]
-                                    p
-                                        b Incentive reward: 
-                                        | #[span#incentive_reward] (
-                                        b #[span#future_block_percentage]
-                                        | )
-                                    p
-                                        b Date: 
-                                        | #[span#future_block_estimated_time]
+                                    .row-fluid
+                                        .span5
+                                            p
+                                                b Block: 
+                                                | #[span#future_block]
+                                            p
+                                                b PoW reward: 
+                                                | #[span#pow_reward]
+                                        .span7
+                                            p
+                                                b Date: 
+                                                | #[span#future_block_estimated_time]
+                                            p
+                                                b Incentive reward: 
+                                                | #[span#incentive_reward] (
+                                                b #[span#future_block_percentage]
+                                                | )
 
                         .span6
-                            h4 TODO: CONVERSION CALCULATOR
+                            .row-fluid
+                                .span6
+                                    h4 CONVERT CURRENCIES
+                                .span6.text-right
+                                    form.form-horizontal(id="form_convert_currency")
+                                        input.span5(id="convert_amount", type="text")
+                                script.
+                                    $('#form_convert_currency').on('submit', function(e) {
+                                        e.preventDefault();
+                                    });
+
+                                    var html_select = $('<select id="selected_converting_currency" class="span5" />');
+                                                      $('<option />', {value: 'VNL', text: 'VNL'}).appendTo(html_select);
+                                                      $('<option />', {value: 'BTC', text: 'BTC'}).appendTo(html_select);
+                                                      $('<option />', {value: 'LOCAL', text: 'LOCAL'}).appendTo(html_select);
+                                        html_select.appendTo('#form_convert_currency');
+
+                                    /**
+                                     * Calculate and update values during input
+                                     */
+                                    $('#convert_amount').keyup(function() {
+                                        if ($('#convert_currency').hasClass('hidden')) {
+                                            $("#convert_currency").toggleClass('hidden');
+                                        }
+
+                                        var local_params = local_currency_params(local_currency[0]);
+
+                                        /**
+                                         * Hide conversion info on currency switch and clear input field
+                                         */
+                                        $('#selected_converting_currency').change(function() {
+                                            if (!$('#convert_currency').hasClass('hidden')) {
+                                                $("#convert_currency").toggleClass('hidden');
+                                            }
+
+                                            $('#convert_amount').val('');
+                                        });
+
+                                        if ($('#selected_converting_currency').val() == 'VNL') {
+                                            /**
+                                             * Update convert from values
+                                             */
+                                            $('#convert_from').text($('#convert_amount').val());
+                                            $('#convert_from_name').text('VNL');
+
+                                            /**
+                                             * Update convert to BTC values
+                                             */
+                                            $('#convert_to_left').text(accounting.formatMoney($('#convert_amount').val() * local_currency[2], 'Ƀ', 8, ',', '.'));
+                                            $('#convert_to_left_name').text('BTC');
+
+                                            /**
+                                             * Update convert to LOCAL values
+                                             */
+                                            $('#convert_to_right').text(accounting.formatMoney($('#convert_amount').val() * local_currency[1] * local_currency[2], local_params['symbol'], 2, local_params['thousand'], local_params['decimal']));
+                                            $('#convert_to_right_name').text(local_currency[0]);
+                                        } else if ($('#selected_converting_currency').val() == 'BTC') {
+                                            /**
+                                             * Update convert from values
+                                             */
+                                            $('#convert_from').text('Ƀ' + $('#convert_amount').val());
+                                            $('#convert_from_name').text('BTC');
+
+                                            /**
+                                             * Update convert to VNL values
+                                             */
+                                            $('#convert_to_left').text(accounting.formatMoney($('#convert_amount').val() / local_currency[2], '', 6, ',', '.'));
+                                            $('#convert_to_left_name').text('VNL');
+
+                                            /**
+                                             * Update convert to LOCAL values
+                                             */
+                                            $('#convert_to_right').text(accounting.formatMoney($('#convert_amount').val() * local_currency[1], local_params['symbol'], 2, local_params['thousand'], local_params['decimal']));
+                                            $('#convert_to_right_name').text(local_currency[0]);
+                                        } else {
+                                            /**
+                                             * Update convert from values
+                                             */
+                                            $('#convert_from').text(accounting.formatMoney($('#convert_amount').val(), local_params['symbol'], 2, local_params['thousand'], local_params['decimal']));
+                                            $('#convert_from_name').text(local_currency[0]);
+
+                                            /**
+                                             * Update convert to VNL values
+                                             */
+                                            $('#convert_to_left').text(accounting.formatMoney((1 / local_currency[1] * $('#convert_amount').val()) / local_currency[2], '', 6, ',', '.'));
+                                            $('#convert_to_left_name').text('VNL');
+
+                                            /**
+                                             * Update convert to BTC values
+                                             */
+                                            $('#convert_to_right').text(accounting.formatMoney(1 / local_currency[1] * $('#convert_amount').val(), 'Ƀ', 8, ',', '.'));
+                                            $('#convert_to_right_name').text('BTC');
+                                        }
+                                    });
+
+                                #convert_currency.hidden
+                                    p
+                                        b #[span#convert_from]
+                                        |  #[span#convert_from_name]
+                                    .row-fluid
+                                        .span5
+                                            p
+                                                b #[span#convert_to_left]
+                                                |  #[span#convert_to_left_name]
+                                        .span7
+                                            p
+                                                b #[span#convert_to_right]
+                                                |  #[span#convert_to_right_name]
                 .span2
                     script.
                         /**

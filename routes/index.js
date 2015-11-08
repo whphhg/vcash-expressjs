@@ -100,6 +100,13 @@ io.on('connection', function(socket) {
     socket.emit('incentive_percentages', vars['incentive_percentages']);
 
     /**
+     * Refresh watch address list
+     */
+    socket.on('refresh_watch_addresses', function() {
+        HTTPS_getwatchaddresses();
+    });
+
+    /**
      * Save new local currency to config.json & update
      */
     socket.on('set_local_currency', function(currency) {
@@ -453,10 +460,6 @@ io.on('connection', function(socket) {
             for (key in vars['watch_addresses']) {
                 if (vars['watch_addresses'][key]['address'] == address) {
                     vars['watch_addresses'][key]['balance'] = balance;
-
-                    setTimeout(function() {
-                        console.log(vars['local_currency'],vars['btc_local'],vars['vnl_poloniex'],vars['vnl_bittrex']);
-                    }, 3000);
                     break;
                 }
             }
@@ -563,12 +566,12 @@ io.on('connection', function(socket) {
     })();
 
     /**
-     * Update watch address data when a client connects and after that every 5 minutes
+     * Update watch address data when a client connects and after that every 15 minutes
      */
     (function update() {
         HTTPS_getwatchaddresses();
 
-        setTimeout(update, 300000);
+        setTimeout(update, 900000);
     })();
 
     /**
