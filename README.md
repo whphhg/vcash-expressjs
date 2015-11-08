@@ -2,7 +2,7 @@
 **Warning**: Please backup your existing wallet files (~/.Vanillacoin/data/) folder. I take no responsibilty if you break something.
 
 
-Clone the repository and npm install
+Clone the repository and install npm dependencies
 ```
 git clone https://github.com/whphhg/vanillacoind-web-ui
 cd vanillacoind-web-ui
@@ -14,4 +14,8 @@ Usage
 npm start
 ```
 
-Here's a short [video](https://vimeo.com/143471620) of the ui.
+**Main window**
+![Alt](http://i.imgur.com/XGiZz6K.png)
+
+**Incentive info**
+![Alt](http://i.imgur.com/P2Q0OLG.png)
