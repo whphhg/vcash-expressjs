@@ -53,6 +53,11 @@ var extend = require('node.extend');
 var request = require('request');
 
 /**
+ * QR code module
+ */
+var qrCode = require('qrcode-npm')
+
+/**
  * Run when a client connects
  */
 io.on('connection', function(socket) {
@@ -98,6 +103,17 @@ io.on('connection', function(socket) {
      * Emit incentive percentages
      */
     socket.emit('incentive_percentages', vars['incentive_percentages']);
+
+    /**
+     * Create and emit QR code
+     */
+    socket.on('qr_code_create', function(obj) {
+        var qr = qrCode.qrcode(4, 'M');
+        qr.addData(obj);
+        qr.make();
+
+        socket.emit('qr_code_return', qr.createImgTag(4));
+    });
 
     /**
      * Refresh watch address list

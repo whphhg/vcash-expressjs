@@ -714,7 +714,7 @@ block content
                         .span6
                             .row-fluid
                                 .span6
-                                    h4 CONVERT CURRENCIES
+                                    h4 CONVERT CURRENCY
                                 .span6.text-right
                                     form.form-horizontal(id="form_convert_currency")
                                         input.span5(id="convert_amount", type="text")
@@ -820,6 +820,33 @@ block content
                                             p
                                                 b #[span#convert_to_right]
                                                 |  #[span#convert_to_right_name]
+                    .row-fluid
+                        .span2
+                        .span8.text-center
+                            hr
+                            .row-fluid
+                                .span3
+                                    h4 CREATE QR CODE
+                                .span9.text-right
+                                    form.form-horizontal(id="form_create_qr_code")
+                                        input.span9(id="create_qr_code", type="text")
+                                        input.span2(id="button_create_qr_code", type="submit", value="Create")
+
+                            .row-fluid #[span#qr_code]
+                            p #[span#qr_code_text]
+
+                            script.
+                                $('#form_create_qr_code').on('submit', function(e) {
+                                    e.preventDefault();
+                                    socket.emit('qr_code_create', $('#create_qr_code').val());
+                                });
+
+                                socket.on('qr_code_return', function(obj) {
+                                    $('#qr_code').empty();
+                                    $('#qr_code').append(obj);
+                                    $('#qr_code_text').empty();
+                                    $('#qr_code_text').append($('#create_qr_code').val());
+                                });
                 .span2
                     script.
                         /**
