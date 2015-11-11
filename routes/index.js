@@ -438,13 +438,16 @@ io.on('connection', function(socket) {
     function HTTPS_poloniextradehistory() {
         request('https://poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL', function (error, response, body) {
             if (!error) {
-                body = JSON.parse(body);
-
                 /**
-                 * Add latest VNL price to vars object
+                 * Make sure that response content-type is JSON
                  */
-                vars['vnl_poloniex'] = parseFloat(body[0]['rate']);
-                socket.emit('poloniextradehistory', body);
+                if (response['headers']['content-type'] == 'application/json') {
+                    body = JSON.parse(body);
+                    vars['vnl_poloniex'] = parseFloat(body[0]['rate']);
+                    socket.emit('poloniextradehistory', body);
+                } else {
+                    console.log('Error: Poloniex response Content-Type. Headers: ', response['headers']);
+                }
             } else {
                 console.log('HTTPS_poloniextradehistory()', error);
             }
@@ -457,14 +460,17 @@ io.on('connection', function(socket) {
     function HTTPS_bittrextradehistory() {
         request('https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50', function (error, response, body) {
             if (!error) {
-                body = JSON.parse(body);
-                body = body.result;
-
                 /**
-                 * Add latest VNL price to vars object
+                 * Make sure that response content-type is JSON
                  */
-                vars['vnl_bittrex'] = parseFloat(body[0]['Price']);
-                socket.emit('bittrextradehistory', body);
+                if (response['headers']['content-type'] == 'application/json; charset=utf-8') {
+                    body = JSON.parse(body);
+                    body = body.result;
+                    vars['vnl_bittrex'] = parseFloat(body[0]['Price']);
+                    socket.emit('bittrextradehistory', body);
+                } else {
+                    console.log('Error: Bittrex response Content-Type. Headers: ', response['headers']);
+                }
             } else {
                 console.log('HTTPS_bittrextradehistory()', error);
             }
