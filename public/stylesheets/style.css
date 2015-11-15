@@ -1,49 +1,84 @@
+/**
+ * General
+ */
 button, input, select, textarea {
-    margin-top: 5px;
+    margin-top:5px;
 }
-
 h3 {
-    font-size: 18px;
+    font-size:18px;
 }
-
 h4 {
-    font-size: 15px;
+    font-size:15px;
 }
-
 input[type=text], select {
-    margin-right: 5px;
+    margin-right:5px;
 }
-
 .tradehistory {
     height:270px;
     overflow-y:scroll;
 }
-
 .Sell {
     color:red;
 }
-
 .Buy {
     color:green;
 }
-
 .table-striped>tbody>tr:nth-child(odd)>td, 
 .table-striped>tbody>tr:nth-child(odd)>th {
-   background-color: #f8f5f0;
- }
-
+    background-color:#f8f5f0;
+}
 .table-striped td {
     padding:2px;
 }
-
 .table-striped th {
     padding:2px;
 }
-
 .button_margin_left {
     margin-left:5px;
 }
-
+.button_margin_left_right {
+    margin-left:5px;
+    margin-right:5px;
+}
 hr {
     margin:0px;
+}
+
+/**
+ * Reward spread (timeseries) & rewards per day chart
+ */
+.bar, .circ {
+    fill:#f6c329;
+    opacity:0.8;
+}
+.domain {
+    display:none;
+}
+.axis path, .axis line {
+    fill:none;
+    stroke:#000;
+    shape-rendering:crispEdges;
+}
+.axis text {
+    font-size:12px;
+}
+.tick line {
+    stroke:#d5d5d5;
+    opacity:0.7;
+}
+.brush .extent {
+    stroke:#fff;
+    fill-opacity:.125;
+    shape-rendering:crispEdges;
+}
+.clear-brush {
+    display:none;
+}
+.brush-control {
+    padding:.5%;
+    text-align:center;
+}
+.brush-info {
+    display:inline-block;
+    font-size:14px;
 }

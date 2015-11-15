@@ -122,7 +122,7 @@ io.on('connection', function(socket) {
      */
     socket.on('set_local_currency', function(currency) {
         nconf.set('settings:localcurrency', currency);
-        nconf.save(function (err) {
+        nconf.save(function(err) {
             if (err) {
                 console.error(err.message);
                 return;
@@ -143,7 +143,7 @@ io.on('connection', function(socket) {
      * Encrypt wallet
      */
     socket.on('encryptwallet', function(encryptionkey) {
-        client.call({"jsonrpc": "2.0", "method": "encryptwallet", "params": [encryptionkey], "id": 0}, function (err, res) {
+        client.call({"jsonrpc": "2.0", "method": "encryptwallet", "params": [encryptionkey], "id": 0}, function(err, res) {
             if (err) { console.log(err); }
 
             if (res['result']) {
@@ -156,7 +156,7 @@ io.on('connection', function(socket) {
      * Unlock wallet
      */
     socket.on('walletpassphrase', function(walletpassphrase) {
-        client.call({"jsonrpc": "2.0", "method": "walletpassphrase", "params": [walletpassphrase], "id": 0}, function (err, res) {
+        client.call({"jsonrpc": "2.0", "method": "walletpassphrase", "params": [walletpassphrase], "id": 0}, function(err, res) {
             if (err) { console.log(err); }
 
             /**
@@ -176,7 +176,7 @@ io.on('connection', function(socket) {
      * Lock wallet
      */
     socket.on('walletlock', function(obj) {
-        client.call({"jsonrpc": "2.0", "method": "walletlock", "params": [], "id": 0}, function (err, res) {
+        client.call({"jsonrpc": "2.0", "method": "walletlock", "params": [], "id": 0}, function(err, res) {
             if (err) { console.log(err); }
 
             /**
@@ -190,7 +190,7 @@ io.on('connection', function(socket) {
      * Generate a new wallet address
      */
     socket.on('getnewaddress', function(obj) {
-        client.call({"jsonrpc": "2.0", "method": "getnewaddress", "params": [], "id": 0}, function (err, res) {
+        client.call({"jsonrpc": "2.0", "method": "getnewaddress", "params": [], "id": 0}, function(err, res) {
             if (err) { console.log(err); }
 
             /**
@@ -204,7 +204,7 @@ io.on('connection', function(socket) {
      * Sweep private key
      */
     socket.on('importprivkey', function(privatekey) {
-        client.call({"jsonrpc": "2.0", "method": "importprivkey", "params": [privatekey], "id": 0}, function (err, res) {
+        client.call({"jsonrpc": "2.0", "method": "importprivkey", "params": [privatekey], "id": 0}, function(err, res) {
             if (err) { console.log(err); }
 
             if (res.error) {
@@ -231,7 +231,7 @@ io.on('connection', function(socket) {
         var address = array[0];
         var title = array[1];
 
-        client.call({"jsonrpc": "2.0", "method": "validateaddress", "params": [address], "id": 0}, function (err, res) {
+        client.call({"jsonrpc": "2.0", "method": "validateaddress", "params": [address], "id": 0}, function(err, res) {
             if (err) { console.log(err); }
 
             var already_added = false;
@@ -284,7 +284,7 @@ io.on('connection', function(socket) {
         var address = params[0];
         var amount = params[1];
 
-        client.call({"jsonrpc": "2.0", "method": "validateaddress", "params": [address], "id": 0}, function (err, res) {
+        client.call({"jsonrpc": "2.0", "method": "validateaddress", "params": [address], "id": 0}, function(err, res) {
             if (err) { console.log(err); }
 
             if (res.result['isvalid']) {
@@ -302,7 +302,7 @@ io.on('connection', function(socket) {
         var address = params[0];
         var amount = params[1];
 
-        client.call({"jsonrpc": "2.0", "method": "sendtoaddress", "params": [address, amount], "id": 0}, function (err, res) {
+        client.call({"jsonrpc": "2.0", "method": "sendtoaddress", "params": [address, amount], "id": 0}, function(err, res) {
             if (err) { console.log(err); }
 
             if (res.error) {
@@ -383,7 +383,7 @@ io.on('connection', function(socket) {
      * JSON API for foreign exchange rates. Get current foreign exchange rates published by the European Central Bank. Updated daily
      */
     function HTTPS_fixerio() {
-        request('https://api.fixer.io/latest?base=USD', function (error, response, body) {
+        request('https://api.fixer.io/latest?base=USD', function(error, response, body) {
             if (!error) {
                 fixerio = JSON.parse(body);
                 fixerio = fixerio.rates;
@@ -416,7 +416,7 @@ io.on('connection', function(socket) {
      * Latest BTC value in USD from Bistamp. Returns JSON dictionary like https://www.bitstamp.net/api/ticker/, but calculated values are from within an hour
      */
     function HTTPS_bitstamp() {
-        request('https://www.bitstamp.net/api/ticker_hour/', function (error, response, body) {
+        request('https://www.bitstamp.net/api/ticker_hour/', function(error, response, body) {
             if (!error) {
                 btc = JSON.parse(body);
 
@@ -436,17 +436,20 @@ io.on('connection', function(socket) {
      * Get last 200 trades from Poloniex
      */
     function HTTPS_poloniextradehistory() {
-        request('https://poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL', function (error, response, body) {
+        request('https://poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL', function(error, response, body) {
             if (!error) {
                 /**
-                 * Make sure that response content-type is JSON
+                 * Make sure that response content-type is JSON and not empty
                  */
                 if (response['headers']['content-type'] == 'application/json') {
                     body = JSON.parse(body);
-                    vars['vnl_poloniex'] = parseFloat(body[0]['rate']);
-                    socket.emit('poloniextradehistory', body);
+
+                    if (body.length > 0) {
+                        vars['vnl_poloniex'] = parseFloat(body[0]['rate']);
+                        socket.emit('poloniextradehistory', body);
+                    }
                 } else {
-                    console.log('Error: Poloniex response Content-Type. Headers: ', response['headers']);
+                    console.log('HTTPS_poloniextradehistory() incorrect response content-type. Headers: ', response['headers']);
                 }
             } else {
                 console.log('HTTPS_poloniextradehistory()', error);
@@ -458,18 +461,21 @@ io.on('connection', function(socket) {
      * Get last 50 trades from Bittrex
      */
     function HTTPS_bittrextradehistory() {
-        request('https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50', function (error, response, body) {
+        request('https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50', function(error, response, body) {
             if (!error) {
                 /**
-                 * Make sure that response content-type is JSON
+                 * Make sure that response content-type is JSON and not empty
                  */
                 if (response['headers']['content-type'] == 'application/json; charset=utf-8') {
                     body = JSON.parse(body);
                     body = body.result;
-                    vars['vnl_bittrex'] = parseFloat(body[0]['Price']);
-                    socket.emit('bittrextradehistory', body);
+
+                    if (body.length > 0) {
+                        vars['vnl_bittrex'] = parseFloat(body[0]['Price']);
+                        socket.emit('bittrextradehistory', body);
+                    }
                 } else {
-                    console.log('Error: Bittrex response Content-Type. Headers: ', response['headers']);
+                    console.log('HTTPS_bittrextradehistory() incorrect response content-type. Headers: ', response['headers']);
                 }
             } else {
                 console.log('HTTPS_bittrextradehistory()', error);
@@ -547,7 +553,7 @@ io.on('connection', function(socket) {
      * RPC method 'listreceivedbyaddress' params 'minconf:1, includeempty:true'
      */
     function RPC_listreceivedbyaddress() {
-        client.call({"jsonrpc": "2.0", "method": "listreceivedbyaddress", "params": {"minconf":1,"includeempty":true}, "id": 0}, function (err, res) {
+        client.call({"jsonrpc": "2.0", "method": "listreceivedbyaddress", "params": {"minconf":1,"includeempty":true}, "id": 0}, function(err, res) {
             if (err) { console.log(err); }
             socket.emit('listreceivedbyaddress', res.result);
         });
@@ -557,7 +563,7 @@ io.on('connection', function(socket) {
      * RPC method 'walletpassphrase' without params. Returns error codes needed on client
      */
     function RPC_walletpassphrase() {
-        client.call({"jsonrpc": "2.0", "method": "walletpassphrase", "params": [], "id": 0}, function (err, res) {
+        client.call({"jsonrpc": "2.0", "method": "walletpassphrase", "params": [], "id": 0}, function(err, res) {
             if (err) { console.log(err); }
             socket.emit('wallet_passphrase_check', res.error);
         });
@@ -567,7 +573,7 @@ io.on('connection', function(socket) {
      * Use RPC method "listsinceblock" to list all transactions
      */
     function RPC_listsinceblock() {
-        client.call({"jsonrpc": "2.0", "method": "listsinceblock", "params": [], "id": 0}, function (err, res) {
+        client.call({"jsonrpc": "2.0", "method": "listsinceblock", "params": [], "id": 0}, function(err, res) {
             if (err) { console.log(err); }
             socket.emit('listsinceblock', res.result.transactions);
         });
@@ -641,7 +647,7 @@ io.on('connection', function(socket) {
          */
         if (process.platform == "linux") {
             var exec = require('child_process').exec
-            child = exec("tail -300 ~/.Vanillacoin/data/debug.log | grep UDP | tail -1 | sed 's/[^0-9]//g'", function (error, stdout, stderr) {
+            child = exec("tail -300 ~/.Vanillacoin/data/debug.log | grep UDP | tail -1 | sed 's/[^0-9]//g'", function(error, stdout, stderr) {
                 socket.emit('udp_connections', stdout);
 
                 if (error !== null) {
@@ -656,7 +662,7 @@ io.on('connection', function(socket) {
         /**
          * RPC method 'getinfo'
          */
-        client.call({"jsonrpc": "2.0", "method": "getinfo", "params": [], "id": 0}, function (err, res) {
+        client.call({"jsonrpc": "2.0", "method": "getinfo", "params": [], "id": 0}, function(err, res) {
             if (err) { console.log(err); }
             socket.emit('getinfo', res.result);
         });
@@ -664,9 +670,17 @@ io.on('connection', function(socket) {
         /**
          * RPC method 'getincentiveinfo'
          */
-        client.call({"jsonrpc": "2.0", "method": "getincentiveinfo", "params": [], "id": 0}, function (err, res) {
+        client.call({"jsonrpc": "2.0", "method": "getincentiveinfo", "params": [], "id": 0}, function(err, res) {
             if (err) { console.log(err); }
             socket.emit('getincentiveinfo', res.result);
+        });
+
+        /**
+         * RPC method 'getpeerinfo'
+         */
+        client.call({"jsonrpc": "2.0", "method": "getpeerinfo", "params": [], "id": 0}, function(err, res) {
+            if (err) { console.log(err); }
+            socket.emit('getpeerinfo', res.result);
         });
 
         RPC_listsinceblock();
