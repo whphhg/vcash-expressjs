@@ -15,7 +15,10 @@ npm start
 ```
 
 **Main window**
-![Alt](http://i.imgur.com/XGiZz6K.png)
+![Alt](http://i.imgur.com/gh9TYYi.png)
+
+**Tools dropdown**
+![Alt](http://i.imgur.com/ShBPNMd.png)
 
 **Incentive info**
-![Alt](http://i.imgur.com/P2Q0OLG.png)
+![Alt](https://i.imgur.com/SzBgkE9.png)
