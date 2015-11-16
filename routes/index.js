@@ -439,12 +439,15 @@ io.on('connection', function(socket) {
         request('https://poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL', function(error, response, body) {
             if (!error) {
                 /**
-                 * Make sure that response content-type is JSON and not empty
+                 * Make sure that response content-type is JSON
                  */
                 if (response['headers']['content-type'] == 'application/json') {
                     body = JSON.parse(body);
 
-                    if (body.length > 0) {
+                    /**
+                     * body will evalute to true if value is not: null, undefined, NaN, empty string (""), 0, false
+                     */
+                    if (body) {
                         vars['vnl_poloniex'] = parseFloat(body[0]['rate']);
                         socket.emit('poloniextradehistory', body);
                     }
@@ -464,13 +467,16 @@ io.on('connection', function(socket) {
         request('https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50', function(error, response, body) {
             if (!error) {
                 /**
-                 * Make sure that response content-type is JSON and not empty
+                 * Make sure that response content-type is JSON
                  */
                 if (response['headers']['content-type'] == 'application/json; charset=utf-8') {
                     body = JSON.parse(body);
                     body = body.result;
 
-                    if (body.length > 0) {
+                    /**
+                     * body will evalute to true if value is not: null, undefined, NaN, empty string (""), 0, false
+                     */
+                    if (body) {
                         vars['vnl_bittrex'] = parseFloat(body[0]['Price']);
                         socket.emit('bittrextradehistory', body);
                     }

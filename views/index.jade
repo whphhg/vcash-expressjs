@@ -640,6 +640,11 @@ block content
                                 rewards_current_month.push({'date':month + '-' + prefix + i, 'rewards':0});
                             }
 
+                            /**
+                             * Sort transactions DESC
+                             */
+                            obj.sort(function(a,b) { return new Date(b.timereceived).getTime() - new Date(a.timereceived).getTime()});
+
                             for (key in obj) {
                                 /**
                                  * Check if tx has been included in a block
