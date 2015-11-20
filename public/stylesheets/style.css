@@ -43,6 +43,9 @@ input[type=text], select {
 hr {
     margin:0px;
 }
+#estimate_blocktime {
+    line-height:40px;
+}
 
 /**
  * Reward spread (timeseries) & rewards per day chart

@@ -360,6 +360,36 @@ io.on('connection', function(socket) {
     });
 
     /**
+     * RPC method 'backupwallet'
+     */
+    socket.on('backupwallet', function() {
+        client.call({"jsonrpc": "2.0", "method": "backupwallet", "params": [""], "id": 0}, function(err, res) {
+            if (err) { console.log(err); }
+            socket.emit('backupwallet_done', true);
+        });
+    });
+
+    /**
+     * RPC method 'checkwallet'
+     */
+    socket.on('checkwallet', function() {
+        client.call({"jsonrpc": "2.0", "method": "checkwallet", "params": [], "id": 0}, function(err, res) {
+            if (err) { console.log(err); }
+            socket.emit('checkwallet_done', res.result);
+        });
+    });
+
+    /**
+     * RPC method 'repairwallet'
+     */
+    socket.on('repairwallet', function() {
+        client.call({"jsonrpc": "2.0", "method": "repairwallet", "params": [], "id": 0}, function(err, res) {
+            if (err) { console.log(err); }
+            socket.emit('repairwallet_done', res.result);
+        });
+    });
+
+    /**
      * Update prices across the page with supplied local currency
      */
     function update_prices(currency) {
@@ -576,7 +606,7 @@ io.on('connection', function(socket) {
     }
 
     /**
-     * Use RPC method "listsinceblock" to list all transactions
+     * RPC method 'listsinceblock'
      */
     function RPC_listsinceblock() {
         client.call({"jsonrpc": "2.0", "method": "listsinceblock", "params": [], "id": 0}, function(err, res) {
