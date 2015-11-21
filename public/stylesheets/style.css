@@ -10,7 +10,7 @@ h3 {
 h4 {
     font-size:15px;
 }
-input[type=text], select {
+input[type=text] {
     margin-right:5px;
 }
 .tradehistory {
@@ -28,10 +28,12 @@ input[type=text], select {
     background-color:#f8f5f0;
 }
 .table-striped td {
-    padding:2px;
+    padding:0px;
+    padding-left:2px;
 }
 .table-striped th {
-    padding:2px;
+    padding:0px;
+    padding-left:2px;
 }
 .button_margin_left {
     margin-left:5px;
@@ -41,10 +43,13 @@ input[type=text], select {
     margin-right:5px;
 }
 hr {
-    margin:0px;
+    margin-top:0px;
 }
 #estimate_blocktime {
     line-height:40px;
+}
+#incentive_window_graphs {
+    margin-bottom:20px;
 }
 
 /**

@@ -344,7 +344,7 @@ io.on('connection', function(socket) {
     });
 
     /**
-     * Calculate and emit incentive reward % based on supplied block number
+     * Calculate and emit incentive reward % based on provided block number
      */
     socket.on('calculate_percentage', function(block_number) {
         for (var key in vars['incentive_percentages']) {
@@ -365,7 +365,18 @@ io.on('connection', function(socket) {
     socket.on('backupwallet', function() {
         client.call({"jsonrpc": "2.0", "method": "backupwallet", "params": [""], "id": 0}, function(err, res) {
             if (err) { console.log(err); }
-            socket.emit('backupwallet_done', true);
+            if (res.error) {
+                /**
+                 * error_code_wallet_error, -4
+                 */
+                if (res.error['code'] == -4) {
+                    socket.emit('alerts', "Backup failed.");
+                } else {
+                    console.log(res.error);
+                }
+            } else {
+                socket.emit('backupwallet_done', true);
+            }
         });
     });
 
@@ -390,7 +401,64 @@ io.on('connection', function(socket) {
     });
 
     /**
-     * Update prices across the page with supplied local currency
+     * Dump private key for the provided public key
+     */
+    socket.on('dumpprivkey', function(public_key) {
+        client.call({"jsonrpc": "2.0", "method": "dumpprivkey", "params": [public_key], "id": 0}, function(err, res) {
+            if (err) { console.log(err); }
+            if (res.error) {
+                /**
+                 * error_code_wallet_error, -4
+                 */
+                if (res.error['code'] == -4) {
+                    socket.emit('alerts', "The address you've entered is not yours.");
+                }
+                /**
+                 * error_code_invalid_address_or_key, -5
+                 */
+                else if (res.error['code'] == -5) {
+                    socket.emit('alerts', "The address you've entered is invalid.");
+                } else {
+                    console.log(res.error);
+                }
+            } else {
+                socket.emit('dumpprivkey_done', res.result);
+            }
+        });
+    });
+
+    /**
+     * Change wallet password to provided password
+     */
+    socket.on('walletpassphrasechange', function(obj) {
+        var old_password = obj[0];
+        var new_password = obj[1];
+
+        client.call({"jsonrpc": "2.0", "method": "walletpassphrasechange", "params": [old_password, new_password], "id": 0}, function(err, res) {
+            if (err) { console.log(err); }
+            if (res.error) {
+                /**
+                 * error_code_wallet_passphrase_incorrect, -14
+                 */
+                if (res.error['code'] == -14) {
+                    socket.emit('alerts', "You've entered an incorrect current passphrase.");
+                }
+                /**
+                 * error_code_wallet_wrong_enc_state, -15
+                 */
+                else if (res.error['code'] == -15) {
+                    socket.emit('alerts', "Wallet is not encrypted.");
+                } else {
+                    console.log(res.error);
+                }
+            } else {
+                socket.emit('alerts', 'Password changed successfuly.');
+            }
+        });
+    });
+
+    /**
+     * Update prices across the page with provided local currency
      */
     function update_prices(currency) {
         if (vars['vnl_poloniex'] != 0 && vars['vnl_bittrex'] != 0) {
