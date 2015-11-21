@@ -100,9 +100,9 @@ io.on('connection', function(socket) {
     socket.emit('incentive_percentages', vars['incentive_percentages']);
 
     /**
-     * Create and emit QR code
+     * Generate and emit QR code
      */
-    socket.on('qr_code_create', function(obj) {
+    socket.on('qr_code_generate', function(obj) {
         var qr = require('qrcode-npm').qrcode(4, 'M');
             qr.addData(obj);
             qr.make();
@@ -411,7 +411,7 @@ io.on('connection', function(socket) {
                  * error_code_wallet_error, -4
                  */
                 if (res.error['code'] == -4) {
-                    socket.emit('alerts', "The address you've entered is not yours.");
+                    socket.emit('alerts', "The address you've entered does not belong to this wallet.");
                 }
                 /**
                  * error_code_invalid_address_or_key, -5
@@ -422,7 +422,7 @@ io.on('connection', function(socket) {
                     console.log(res.error);
                 }
             } else {
-                socket.emit('dumpprivkey_done', res.result);
+                socket.emit('alerts', 'Dumped private key: ' + res.result);
             }
         });
     });

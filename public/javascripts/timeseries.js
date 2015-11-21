@@ -1,6 +1,6 @@
 /* TIMESERIES - A simple D3.js timeseries.
-*   call timeseries(<classd>, <data>, <enableBrush>) with the following parameters
-*   classd - the class name of your container div for the timeseries to attach to
+*   call timeseries(<spaced>, <data>, <enableBrush>) with the following parameters
+*   spaced - the class / id of your container div for the timeseries to attach to
 *   enableBrush - whether to enable the brush
 *
 *   https://github.com/mlvl/timeseries
@@ -9,8 +9,7 @@
 (function() {
 
     var timeseries = function(spaced, data, enableBrush) {
-        classd = spaced.replace(new RegExp(" "), ".");
-        render(classd, spaced, data, enableBrush);
+        render(spaced, data, enableBrush);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -79,7 +78,7 @@
     // ------------------------------------- Rendering ---------------------------------------------
     // ---------------------------------------------------------------------------------------------
 
-    function render(classd, spaced, data, enableBrush) {
+    function render(spaced, data, enableBrush) {
         var padding = timeRangePad(_.pluck(data, 'value'));
         var margin = {top: 10, right: 25, bottom: 15, left: 35}
 
@@ -120,7 +119,7 @@
             .tickSize(-width + margin.right, margin.left)
             .tickFormat(d3.time.format(yFormat));
 
-        var svg = d3.select("." + classd).append("svg")
+        var svg = d3.select(spaced).append("svg")
             .attr("width", width + margin.left + margin.right)
             .attr("height", height + margin.top + margin.bottom);
 

@@ -45,11 +45,14 @@ input[type=text] {
 hr {
     margin-top:0px;
 }
-#estimate_blocktime {
+#estimate_blocktime, #future_block_already_submitted {
     line-height:40px;
 }
 #incentive_window_graphs {
     margin-bottom:20px;
+}
+#icon {
+    padding-top:10px;
 }
 
 /**
