@@ -1,6 +1,9 @@
 /**
  * General
  */
+body {
+    background:#fdfcf8;
+}
 button, input, select, textarea {
     margin-top:5px;
 }
@@ -45,7 +48,7 @@ input[type=text] {
 hr {
     margin-top:0px;
 }
-#estimate_blocktime, #future_block_already_submitted {
+#estimate_blocktime, #future_block_already_submitted, #peers_header {
     line-height:40px;
 }
 #incentive_window_graphs {
@@ -62,7 +65,7 @@ hr {
  * Reward spread (timeseries) & rewards per day chart
  */
 .bar, .circ {
-    fill:#f6c329;
+    fill:#4f3c35;
     opacity:0.8;
 }
 .domain {

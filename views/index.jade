@@ -899,124 +899,129 @@ block content
                                         });
 
                 #incentive_window.hidden
+                    #incentive_window_graphs.hidden.row-fluid
+                        .span6.text-center
+                            h4 REWARD SPREAD (#[span#rewards_total])
+                            .row-fluid #[span#graph_timeseries]
+                        .span6.text-center
+                            h4 REWARDS PER DAY
+                            .row-fluid #[span#graph_rewards_monthly]
                     .row-fluid
                         .span3
-                            form.form-horizontal(id="form_estimate_blocktime")
-                                input.span4(id="input_estimate_blocktime", type="text", placeholder="Block #")
-                                input.btn(id="button_estimate_blocktime", type="submit", value="Estimate block time")
-                                script.
-                                    /**
-                                     * Disable the button until input is filled
-                                     */
-                                    $('#button_estimate_blocktime').prop('disabled', true);
-                                    $('#input_estimate_blocktime').keyup(function() {
-                                        $('#button_estimate_blocktime').prop('disabled', this.value == "" ? true : false);
-                                    });
-
-                                    /**
-                                     * Allow only backspace, delete, left arrow, right arrow, enter, 0-9, numpad 0-9
-                                     */
-                                    $("#input_estimate_blocktime").keydown(function(e) {
-                                        if (!(e.keyCode == 46 || e.keyCode == 8 || e.keyCode == 37 || e.keyCode == 39 || e.keyCode == 13 || (e.keyCode >= 48 && e.keyCode <= 57) || (e.keyCode >= 96 && e.keyCode <= 105))) {
-                                            e.preventDefault();
-                                        }
-                                    });
-
-                                    $('#form_estimate_blocktime').on('submit', function(e) {
-                                        e.preventDefault();
-
-                                        var time_per_block = 111;
-                                        var future_block = parseInt($('#input_estimate_blocktime').val());
-                                        var estimate = new Date();
-
-                                        if (future_block - blocks > 0) {
-                                            estimate.setSeconds(estimate.getSeconds() + (future_block - blocks) * time_per_block);
-
+                        .span9.text-right
+                            .row-fluid
+                                .span9
+                                    b #[span#future_block_already_submitted]
+                                    #estimate_blocktime.hidden
+                                        b Date: 
+                                        | #[span#future_block_estimated_time] (#[span#future_block_in]) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                        b Incentive reward: 
+                                        | #[span#incentive_reward] (
+                                        b #[span#future_block_percentage]
+                                        | ) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                        b PoW reward: 
+                                        | #[span#pow_reward]
+                                .span3
+                                    form.form-horizontal(id="form_estimate_blocktime")
+                                        input.span4(id="input_estimate_blocktime", type="text", placeholder="Block #")
+                                        input.btn(id="button_estimate_blocktime", type="submit", value="Estimate block time")
+                                        script.
                                             /**
-                                             * Calculate %
+                                             * Disable the button until input is filled
                                              */
-                                            socket.emit('calculate_percentage', future_block);
-
-                                            /**
-                                             * Calculate PoW reward (from https://github.com/john-connor/vanillacoin/blob/master/src/reward.cpp)
-                                             */
-                                            subsidy = 128;
-
-                                            for (i = 50000; i <= future_block; i += 50000) {
-                                                subsidy -= subsidy / 6;
-                                            }
-
-                                            /**
-                                             * Update text with % and incentive reward (in coins)
-                                             */
-                                            socket.on('return_percentage', function(obj) {
-                                                $('#future_block_percentage').text(obj + '%');
-                                                $('#incentive_reward').text(((subsidy / 100) * obj).toFixed(6));
+                                            $('#button_estimate_blocktime').prop('disabled', true);
+                                            $('#input_estimate_blocktime').keyup(function() {
+                                                $('#button_estimate_blocktime').prop('disabled', this.value == "" ? true : false);
                                             });
 
-                                            if ($('#estimate_blocktime').hasClass('hidden')) {
-                                                $("#estimate_blocktime").toggleClass('hidden');
-                                            }
-
                                             /**
-                                             * Update the rest of the text
+                                             * Allow only backspace, delete, left arrow, right arrow, enter, 0-9, numpad 0-9
                                              */
-                                            $('#pow_reward').text(subsidy.toFixed(6));
-                                            $('#future_block_already_submitted').text('');
-                                            $("#future_block_estimated_time").text(estimate.toLocaleDateString() + ' ' + estimate.toLocaleTimeString());
-                                            $('#future_block_in').text(moment().to(estimate.toISOString()));
-                                        } else {
-                                            $('#future_block_already_submitted').text('Block already submitted');
+                                            $("#input_estimate_blocktime").keydown(function(e) {
+                                                if (!(e.keyCode == 46 || e.keyCode == 8 || e.keyCode == 37 || e.keyCode == 39 || e.keyCode == 13 || (e.keyCode >= 48 && e.keyCode <= 57) || (e.keyCode >= 96 && e.keyCode <= 105))) {
+                                                    e.preventDefault();
+                                                }
+                                            });
 
-                                            if (!$('#estimate_blocktime').hasClass('hidden')) {
-                                                $("#estimate_blocktime").toggleClass('hidden');
-                                            }
-                                        }
-                                    });
+                                            $('#form_estimate_blocktime').on('submit', function(e) {
+                                                e.preventDefault();
 
-                        .span6.text-center
-                            b #[span#future_block_already_submitted]
-                            #estimate_blocktime.hidden
-                                p
-                                    b Date: 
-                                    | #[span#future_block_estimated_time] (#[span#future_block_in]) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                                    b Incentive reward: 
-                                    | #[span#incentive_reward] (
-                                    b #[span#future_block_percentage]
-                                    | ) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                                    b PoW reward: 
-                                    | #[span#pow_reward]
-                    #incentive_window_graphs.hidden.row-fluid
-                        .span6
-                            h4 REWARD SPREAD (#[span#rewards_total])
-                            .row-fluid.text-center #[span#graph_timeseries]
-                        .span6
-                            h4 REWARDS PER DAY
-                            .row-fluid.text-center #[span#graph_rewards_monthly]
-                    .row-fluid.text-center
-                        script.
-                            /**
-                             * Update UDP connections
-                             */
-                            socket.on('udp_connections', function(obj) {
-                                $('#udp_connections').text(obj);
-                            });
+                                                var time_per_block = 111;
+                                                var future_block = parseInt($('#input_estimate_blocktime').val());
+                                                var estimate = new Date();
 
-                            /**
-                             * Update with information received from RPC method 'getincentiveinfo'
-                             */
-                            socket.on('getincentiveinfo', function(obj) {
+                                                if (future_block - blocks > 0) {
+                                                    estimate.setSeconds(estimate.getSeconds() + (future_block - blocks) * time_per_block);
+
+                                                    /**
+                                                     * Calculate %
+                                                     */
+                                                    socket.emit('calculate_percentage', future_block);
+
+                                                    /**
+                                                     * Calculate PoW reward (from https://github.com/john-connor/vanillacoin/blob/master/src/reward.cpp)
+                                                     */
+                                                    subsidy = 128;
+
+                                                    for (i = 50000; i <= future_block; i += 50000) {
+                                                        subsidy -= subsidy / 6;
+                                                    }
+
+                                                    /**
+                                                     * Update text with % and incentive reward (in coins)
+                                                     */
+                                                    socket.on('return_percentage', function(obj) {
+                                                        $('#future_block_percentage').text(obj + '%');
+                                                        $('#incentive_reward').text(((subsidy / 100) * obj).toFixed(6));
+                                                    });
+
+                                                    if ($('#estimate_blocktime').hasClass('hidden')) {
+                                                        $("#estimate_blocktime").toggleClass('hidden');
+                                                    }
+
+                                                    /**
+                                                     * Update the rest of the text
+                                                     */
+                                                    $('#pow_reward').text(subsidy.toFixed(6));
+                                                    $('#future_block_already_submitted').text('');
+                                                    $("#future_block_estimated_time").text(estimate.toLocaleDateString() + ' ' + estimate.toLocaleTimeString());
+                                                    $('#future_block_in').text(moment().to(estimate.toISOString()));
+                                                } else {
+                                                    $('#future_block_already_submitted').text('Block already submitted');
+
+                                                    if (!$('#estimate_blocktime').hasClass('hidden')) {
+                                                        $("#estimate_blocktime").toggleClass('hidden');
+                                                    }
+                                                }
+                                            });
+
+
+                    #peers_header.row-fluid
+                        .span2
+                            h4 NEIGHBOURING PEERS
+                        .span10.text-right
+                            script.
                                 /**
-                                 * Update #[span#key] elements
+                                 * Update UDP connections
                                  */
-                                for (var key in obj) {
-                                    if (obj.hasOwnProperty(key)) {
-                                        $("#" + key).text(obj[key]);
-                                    }
-                                }
-                            });
+                                socket.on('udp_connections', function(obj) {
+                                    $('#udp_connections').text(obj);
+                                });
 
-                        p
+                                /**
+                                 * Update with information received from RPC method 'getincentiveinfo'
+                                 */
+                                socket.on('getincentiveinfo', function(obj) {
+                                    /**
+                                     * Update #[span#key] elements
+                                     */
+                                    for (var key in obj) {
+                                        if (obj.hasOwnProperty(key)) {
+                                            $("#" + key).text(obj[key]);
+                                        }
+                                    }
+                                });
+
                             b Vote candidate: 
                             | #[span#votecandidate] &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                             | #[span#ip]
@@ -1030,8 +1035,6 @@ block content
                             | #[span#udp_connections] &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                             b Collateral: 
                             | #[span#collateralbalance] / #[span#collateralrequired]
-
-                    h4 NEIGHBOURING PEERS
                     #map
                     script.
                         /**

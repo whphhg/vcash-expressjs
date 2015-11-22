@@ -658,6 +658,9 @@ io.on('connection', function(socket) {
      * Get lon, lat & country for provided IP and update ip_lonlat_cache array
      */
     function HTTPS_freegeoip(ip) {
+        /**
+         * http://ip-api.com/json/_IP_ (was more accurate, but is http only)
+         */
         request('https://freegeoip.net/json/$ip'.replace('$ip', ip), function(error, response, body) {
             if (!error) {
                 /**
