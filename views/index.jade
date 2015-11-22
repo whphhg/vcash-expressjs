@@ -308,6 +308,11 @@ block content
                                         $("#incentive_window").toggleClass('hidden');
                                         $("#wallet_window").toggleClass('hidden');
                                     }
+
+                                    /**
+                                     * Resize the map on "Incentive info" click
+                                     */
+                                    peers_map.invalidateSize();
                                 });
 
                                 /**
@@ -895,7 +900,7 @@ block content
 
                 #incentive_window.hidden
                     .row-fluid
-                        .span2
+                        .span3
                             form.form-horizontal(id="form_estimate_blocktime")
                                 input.span4(id="input_estimate_blocktime", type="text", placeholder="Block #")
                                 input.btn(id="button_estimate_blocktime", type="submit", value="Estimate block time")
@@ -969,7 +974,7 @@ block content
                                         }
                                     });
 
-                        .span8.text-center
+                        .span6.text-center
                             b #[span#future_block_already_submitted]
                             #estimate_blocktime.hidden
                                 p
@@ -1025,35 +1030,102 @@ block content
                             | #[span#udp_connections] &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                             b Collateral: 
                             | #[span#collateralbalance] / #[span#collateralrequired]
-                    .row-fluid
-                        h4 NEIGHBOURING PEERS
-                        script.
+
+                    h4 NEIGHBOURING PEERS
+                    #map
+                    script.
+                        /**
+                         * Create new leaflet map
+                         */
+                        peers_map = new L.Map('map');
+                        peers_map.setView([43.321153, -28.602914], 3);
+                        var markers_array = [];
+
+                        /**
+                         * Add mapquest tile layer and give proper attributions
+                         */
+                        L.tileLayer('http://otile4.mqcdn.com/tiles/1.0.0/osm/{z}/{x}/{y}.png', {
+                            attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors. Tiles courtesy of <a href="http://www.mapquest.com/">MapQuest</a>. <img src="http://developer.mapquest.com/content/osm/mq_logo.png">',
+                            maxZoom: 18
+                        }).addTo(peers_map);
+
+                        /**
+                         * Loop through the object and add markers to the map
+                         */
+                        function addMarkers(obj) {
                             /**
-                             * List all wallet addresses including empty ones
+                             * Clear already added markers
                              */
-                            socket.on('getpeerinfo', function(obj) {
-                                $('#table_getpeerinfo').empty();
+                            for (var i=0; i < markers_array.length; i++){
+                                peers_map.removeLayer(markers_array[i]);
+                            }
 
-                                var html_table = $('<table class="table table-striped"><thead><tr><th>Address</th><th>Last send</th><th>Last receive</th><th>Connected on</th><th>Protocol</th><th>Version</th><th>Inbound</th><th>Starting height</th><th>Ban score</th></tr></thead></table>');
-
-                                for (key in obj) {
+                            /**
+                             * Loop through the object and add markers to the map
+                             */
+                            for (var key in obj) {
+                                if (obj[key].hasOwnProperty('lat') && obj[key].hasOwnProperty('lon')) {
                                     /**
-                                     * Convert time fields to miliseconds
+                                     * Create a marker based on provided lat / lon and add it to the map
                                      */
-                                    var lastsend = new Date(obj[key]['lastsend'] * 1000);
-                                        lastsend = lastsend.toLocaleDateString() + ' ' + lastsend.toLocaleTimeString();
-                                    var lastrecv = new Date(obj[key]['lastrecv'] * 1000);
-                                        lastrecv = lastrecv.toLocaleDateString() + ' ' + lastrecv.toLocaleTimeString();
-                                    var conntime = new Date(obj[key]['conntime'] * 1000);
-                                        conntime = conntime.toLocaleDateString() + ' ' + conntime.toLocaleTimeString();
+                                    var marker = new L.Marker(new L.LatLng(obj[key]['lat'], obj[key]['lon']));
+                                    peers_map.addLayer(marker);
 
-                                    html_table.append('<tr><td>' + obj[key]['addr'] + '</td><td>' + lastsend + '</td><td>' + lastrecv + '</td><td>' + conntime + '</td><td>' + obj[key]['version'] + '</td><td>' + obj[key]['subver'].replace(/\//g, '') + '</td><td>' + obj[key]['inbound'] + '</td><td>' + obj[key]['startingheight'] + '</td><td>' + obj[key]['banscore'] + '/100</td></tr>');
+                                    /**
+                                     * Set popup text for the current marker
+                                     */
+                                    marker.bindPopup('<p><b>Country</b>: ' + obj[key]['country'] + '</p><p><b>Address</b>: ' + obj[key]['addr'] + '</p><p><b>Version</b>: ' + obj[key]['subver'].replace(/\//g, '') + '</p>');
+
+                                    /**
+                                     * Push each marker to markers_array
+                                     */
+                                    markers_array.push(marker);
+                                }
+                            }
+                        }
+
+                        /**
+                         * List neighbouring peers
+                         */
+                        socket.on('getpeerinfo', function(obj) {
+                            $('#table_getpeerinfo').empty();
+
+                            /**
+                             * Pass the object to addMarkers for peers graph population
+                             */
+                            addMarkers(obj);
+
+                            var html_table = $('<table class="table table-striped"><thead><tr><th>Address</th><th>Country</th><th>Last send</th><th>Last receive</th><th>Connected on</th><th>Protocol</th><th>Version</th><th>Inbound</th><th>Starting height</th><th>Ban score</th></tr></thead></table>');
+
+                            for (key in obj) {
+                                /**
+                                 * Convert time fields to miliseconds
+                                 */
+                                var lastsend = new Date(obj[key]['lastsend'] * 1000);
+                                    lastsend = lastsend.toLocaleDateString() + ' ' + lastsend.toLocaleTimeString();
+                                var lastrecv = new Date(obj[key]['lastrecv'] * 1000);
+                                    lastrecv = lastrecv.toLocaleDateString() + ' ' + lastrecv.toLocaleTimeString();
+                                var conntime = new Date(obj[key]['conntime'] * 1000);
+                                    conntime = conntime.toLocaleDateString() + ' ' + conntime.toLocaleTimeString();
+
+                                /**
+                                 * Check if country is set and update accordingly
+                                 */
+                                if (obj[key].hasOwnProperty('country')) {
+                                    var country = obj[key]['country'];
+                                } else {
+                                    var country = '-----';
                                 }
 
-                                $('#table_getpeerinfo').append(html_table);
-                            });
+                                html_table.append('<tr><td>' + obj[key]['addr'] + '</td><td>' + country + '</td><td>' + lastsend + '</td><td>' + lastrecv + '</td><td>' + conntime + '</td><td>' + obj[key]['version'] + '</td><td>' + obj[key]['subver'].replace(/\//g, '') + '</td><td>' + obj[key]['inbound'] + '</td><td>' + obj[key]['startingheight'] + '</td><td>' + obj[key]['banscore'] + '/100</td></tr>');
+                            }
 
-                        .row-fluid #[span#table_getpeerinfo]
+                            $('#table_getpeerinfo').append(html_table);
+                        });
+
+                    .row-fluid
+                        .span12
+                    .row-fluid #[span#table_getpeerinfo]
                 .footer
                     .row-fluid
                         .span12

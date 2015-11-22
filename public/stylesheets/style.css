@@ -54,6 +54,9 @@ hr {
 #icon {
     padding-top:10px;
 }
+#map {
+    height:500px;
+}
 
 /**
  * Reward spread (timeseries) & rewards per day chart

@@ -91,7 +91,8 @@ io.on('connection', function(socket) {
                                  {"block_height":461800, "percentage":35},
                                  {"block_height":476700, "percentage":36},
                                  {"block_height":492000, "percentage":37}],
-        "currencies":[]
+        "currencies":[],
+        "ip_lonlat_cache":[]
     }
 
     /**
@@ -654,6 +655,33 @@ io.on('connection', function(socket) {
     }
 
     /**
+     * Get lon, lat & country for provided IP and update ip_lonlat_cache array
+     */
+    function HTTPS_freegeoip(ip) {
+        request('https://freegeoip.net/json/$ip'.replace('$ip', ip), function(error, response, body) {
+            if (!error) {
+                /**
+                 * Make sure that response content-type is JSON
+                 */
+                if (response['headers']['content-type'] == 'application/json') {
+                    body = JSON.parse(body);
+
+                    /**
+                     * body will evalute to true if value is not: null, undefined, NaN, empty string (""), 0, false
+                     */
+                    if (body) {
+                        vars['ip_lonlat_cache'].push({"ip":ip, "lon":body['longitude'], "lat":body['latitude'], "country":body['country_name']});
+                    }
+                } else {
+                    console.log('HTTPS_freegeoip() incorrect response content-type. Headers: ', response['headers']);
+                }
+            } else {
+                console.log('HTTPS_freegeoip()', error);
+            }
+        });
+    }
+
+    /**
      * RPC method 'listreceivedbyaddress' params 'minconf:1, includeempty:true'
      */
     function RPC_listreceivedbyaddress() {
@@ -784,6 +812,37 @@ io.on('connection', function(socket) {
          */
         client.call({"jsonrpc": "2.0", "method": "getpeerinfo", "params": [], "id": 0}, function(err, res) {
             if (err) { console.log(err); }
+
+            /**
+             * Loop through the results
+             */
+            for (var key_res in res.result) {
+                var ip = res.result[key_res]['addr'].split(':');
+                var found = false;
+
+                /**
+                 * If IP exists in cache, copy over lon, lat, country and add it to result object
+                 */
+                for (var key_vars in vars['ip_lonlat_cache']) {
+                    if (vars['ip_lonlat_cache'][key_vars]['ip'] == ip[0]) {
+                        found = true;
+
+                        res.result[key_res]['lon'] = vars['ip_lonlat_cache'][key_vars]['lon'];
+                        res.result[key_res]['lat'] = vars['ip_lonlat_cache'][key_vars]['lat'];
+                        res.result[key_res]['country'] = vars['ip_lonlat_cache'][key_vars]['country'];
+
+                        break;
+                    }
+                }
+
+                /**
+                 * If IP doesn't exist in cache, call the function to fetch it's lon, lat, country and add it to cache array
+                 */
+                if (!found) {
+                    HTTPS_freegeoip(ip[0]);
+                }
+            }
+
             socket.emit('getpeerinfo', res.result);
         });
 
