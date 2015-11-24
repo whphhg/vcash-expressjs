@@ -1057,10 +1057,7 @@ block content
                         var marker_groups_previous = {};
                         var obj_previous = {};
 
-                        /**
-                         * Loop through the object and add markers to the map
-                         */
-                        function addMarkers(obj) {
+                        function update_markers(obj) {
                             var marker_groups = {};
 
                             /**
@@ -1069,35 +1066,42 @@ block content
                             obj.sort(function(a,b) { return a.subver < b.subver });
 
                             /**
-                             * Craete a deep copy of obj so we don't alter it below with deletes
+                             * Craete a deep copy of obj so we don't alter the original with deletes
                              */
-                            var obj = $.extend(true, [], obj);
+                            var obj_temp = $.extend(true, [], obj);
 
                             for (var key in obj) {
                                 if (obj[key].hasOwnProperty('lat') && obj[key].hasOwnProperty('lon')) {
                                     /**
-                                     * Remove / / from the subver string
+                                     * Remove / / & 'Vanillacoin:' from the subver string
                                      */
-                                    var version = obj[key]['subver'].replace(/\//g, '');
+                                    var version = obj[key]['subver'].replace(/\//g, '').replace(':',' ');
 
                                     /**
-                                     * Add new subver k,v pair if it doesn't already exist
+                                     * Set 'No version' for clients not reporting their version
                                      */
-                                    if (!marker_groups.hasOwnProperty(version)) {
-                                        marker_groups[version] = [];
+                                    if (version.length < 2) {
+                                        version = 'No version';
                                     }
 
                                     /**
-                                     * Create a marker based on provided lat / lon and add it to the array
+                                     * Add new subver to the object and initialize a new layer group as value
                                      */
-                                    marker_groups[version].push(new L.marker([obj[key]['lat'], obj[key]['lon']]).bindPopup('<p><b>Country</b>: ' + obj[key]['country'] + '</p><p><b>Address</b>: ' + obj[key]['addr'] + '</p><p><b>Version</b>: ' + version + '</p>'));
+                                    if (!marker_groups.hasOwnProperty(version)) {
+                                        marker_groups[version] = L.layerGroup();
+                                    }
+
+                                    /**
+                                     * Create a marker based on provided lat / lon and add it to the layer group
+                                     */
+                                    L.marker([obj[key]['lat'], obj[key]['lon']]).bindPopup('<p><b>Country</b>: ' + obj[key]['country'] + '</p><p><b>Address</b>: ' + obj[key]['addr'] + '</p><p><b>Version</b>: ' + version + '</p>').addTo(marker_groups[version]);
 
                                     /**
                                      * If address is found in previous obj, remove it from the current obj
                                      */
-                                    for (var key_o in obj_previous) {
-                                        if (obj[key]['addr'] == obj_previous[key_o]['addr']) {
-                                            delete obj[key];
+                                    for (var key_p in obj_previous) {
+                                        if (obj[key]['addr'] == obj_previous[key_p]['addr']) {
+                                            delete obj_temp[key];
                                             break;
                                         }
                                     }
@@ -1105,9 +1109,19 @@ block content
                             }
 
                             /**
-                             * Length == 0 when all addresses were found in obj_previous
+                             * obj_temp is empty if it's equal to obj_previous and gets all entries deleted
+                             * if not, extra entries will be left inside, so update the map
                              */
-                            if (Object.keys(obj).length > 0) {
+                            if (Object.keys(obj_temp).length > 0) {
+                                var controls_selected = {};
+
+                                /**
+                                 * Save checkbox states
+                                 */
+                                $('.leaflet-control-layers-overlays :input').each(function() {
+                                    controls_selected[$(this)['context']['parentElement']['textContent'].replace(' ','')] = $(this)['context']['checked'];
+                                });
+
                                 /**
                                  * If controls are defined, remove them from the map
                                  */
@@ -1116,32 +1130,34 @@ block content
                                 }
 
                                 /**
-                                 * Clear layers of each group
+                                 * Remove previously added overlays
                                  */
                                 for (var key in marker_groups_previous) {
                                     marker_groups_previous[key].clearLayers();
                                 }
 
-                                /**
-                                 * Convert normal [] into L.layerGroup
-                                 */
-                                for (key in marker_groups) {
-                                    marker_groups[key] = L.layerGroup(marker_groups[key]);
-                                }
-
-                                /**
-                                 * Add markers and controls to map, set current values
-                                 */
                                 if (Object.keys(marker_groups).length > 0) {
+                                    for (var key in marker_groups) {
+                                        /**
+                                         * If there are no controls present yet, add every overlay
+                                         * else only add currently selected overlays, preserve checkboxes
+                                         */
+                                        if (Object.keys(controls_selected).length == 0) {
+                                            marker_groups[key].addTo(peers_map);
+                                        } else {
+                                            if (controls_selected[key]) {
+                                                marker_groups[key].addTo(peers_map);
+                                            }
+                                        }
+                                    }
+
+                                    /**
+                                     * Save current objects
+                                     */
                                     controls_previous = L.control.layers('', marker_groups).addTo(peers_map);
                                     marker_groups_previous = marker_groups;
                                     obj_previous = obj;
                                 }
-
-                                /**
-                                 * Ugly hack: Click all checkboxes in control to show markers
-                                 */
-                                $('.leaflet-control-layers-selector').click();
                             }
                         }
 
@@ -1154,7 +1170,7 @@ block content
                             /**
                              * Pass the object to addMarkers for peers graph population
                              */
-                            addMarkers(obj);
+                            update_markers(obj);
 
                             var html_table = $('<table class="table table-striped"><thead><tr><th>Address</th><th>Country</th><th>Last send</th><th>Last receive</th><th>Connected on</th><th>Protocol</th><th>Version</th><th>Inbound</th><th>Starting height</th><th>Ban score</th></tr></thead></table>');
 
