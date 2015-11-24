@@ -836,7 +836,7 @@ block content
                                 form.form-horizontal(id="form_wallet_passphrase_change")
                                     input.span4(id="input_old_passphrase", type="text", placeholder="Old passphrase")
                                     input.span4(id="input_new_passphrase", type="text", placeholder="New passphrase")
-                                    input.span2.btn(type="submit", id="button_wallet_passphrase_change", value="Change password")
+                                    input.span2.btn(type="submit", id="button_wallet_passphrase_change", value="Change passphrase")
                                 script.
                                     /**
                                      * Disable the button until inputs are filled
@@ -1040,9 +1040,10 @@ block content
                         /**
                          * Create new leaflet map
                          */
-                        peers_map = new L.Map('map');
-                        peers_map.setView([43.321153, -28.602914], 3);
-                        var markers_array = [];
+                        peers_map = new L.Map('map', {
+                            center: [43.321153, -28.602914],
+                            zoom: 3
+                        });
 
                         /**
                          * Add mapquest tile layer and give proper attributions
@@ -1052,38 +1053,95 @@ block content
                             maxZoom: 18
                         }).addTo(peers_map);
 
+                        var controls_previous = null;
+                        var marker_groups_previous = {};
+                        var obj_previous = {};
+
                         /**
                          * Loop through the object and add markers to the map
                          */
                         function addMarkers(obj) {
-                            /**
-                             * Clear already added markers
-                             */
-                            for (var i=0; i < markers_array.length; i++){
-                                peers_map.removeLayer(markers_array[i]);
-                            }
+                            var marker_groups = {};
 
                             /**
-                             * Loop through the object and add markers to the map
+                             * Sort obj by DESC subver for proper controls display
                              */
+                            obj.sort(function(a,b) { return a.subver < b.subver });
+
+                            /**
+                             * Craete a deep copy of obj so we don't alter it below with deletes
+                             */
+                            var obj = $.extend(true, [], obj);
+
                             for (var key in obj) {
                                 if (obj[key].hasOwnProperty('lat') && obj[key].hasOwnProperty('lon')) {
                                     /**
-                                     * Create a marker based on provided lat / lon and add it to the map
+                                     * Remove / / from the subver string
                                      */
-                                    var marker = new L.Marker(new L.LatLng(obj[key]['lat'], obj[key]['lon']));
-                                    peers_map.addLayer(marker);
+                                    var version = obj[key]['subver'].replace(/\//g, '');
 
                                     /**
-                                     * Set popup text for the current marker
+                                     * Add new subver k,v pair if it doesn't already exist
                                      */
-                                    marker.bindPopup('<p><b>Country</b>: ' + obj[key]['country'] + '</p><p><b>Address</b>: ' + obj[key]['addr'] + '</p><p><b>Version</b>: ' + obj[key]['subver'].replace(/\//g, '') + '</p>');
+                                    if (!marker_groups.hasOwnProperty(version)) {
+                                        marker_groups[version] = [];
+                                    }
 
                                     /**
-                                     * Push each marker to markers_array
+                                     * Create a marker based on provided lat / lon and add it to the array
                                      */
-                                    markers_array.push(marker);
+                                    marker_groups[version].push(new L.marker([obj[key]['lat'], obj[key]['lon']]).bindPopup('<p><b>Country</b>: ' + obj[key]['country'] + '</p><p><b>Address</b>: ' + obj[key]['addr'] + '</p><p><b>Version</b>: ' + version + '</p>'));
+
+                                    /**
+                                     * If address is found in previous obj, remove it from the current obj
+                                     */
+                                    for (var key_o in obj_previous) {
+                                        if (obj[key]['addr'] == obj_previous[key_o]['addr']) {
+                                            delete obj[key];
+                                            break;
+                                        }
+                                    }
                                 }
+                            }
+
+                            /**
+                             * Length == 0 when all addresses were found in obj_previous
+                             */
+                            if (Object.keys(obj).length > 0) {
+                                /**
+                                 * If controls are defined, remove them from the map
+                                 */
+                                if (controls_previous != null) {
+                                    controls_previous.removeFrom(peers_map);
+                                }
+
+                                /**
+                                 * Clear layers of each group
+                                 */
+                                for (var key in marker_groups_previous) {
+                                    marker_groups_previous[key].clearLayers();
+                                }
+
+                                /**
+                                 * Convert normal [] into L.layerGroup
+                                 */
+                                for (key in marker_groups) {
+                                    marker_groups[key] = L.layerGroup(marker_groups[key]);
+                                }
+
+                                /**
+                                 * Add markers and controls to map, set current values
+                                 */
+                                if (Object.keys(marker_groups).length > 0) {
+                                    controls_previous = L.control.layers('', marker_groups).addTo(peers_map);
+                                    marker_groups_previous = marker_groups;
+                                    obj_previous = obj;
+                                }
+
+                                /**
+                                 * Ugly hack: Click all checkboxes in control to show markers
+                                 */
+                                $('.leaflet-control-layers-selector').click();
                             }
                         }
 
