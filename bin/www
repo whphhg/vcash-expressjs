@@ -10,7 +10,6 @@ var port = '3000';
  */
 var app = require('../app');
     app.set('port', port);
-var debug = require('debug')('vanillacoind-web-ui:server');
 var http = require('http');
 
 /**
