@@ -1057,6 +1057,14 @@ block content
                         var marker_groups_previous = {};
                         var obj_previous = {};
 
+                        /**
+                         * Custom marker icon
+                         */
+                        var vanilla_icon = L.icon({
+                            iconUrl: '/images/marker-icon.png',
+                            shadowUrl: '/images/marker-shadow.png'
+                        });
+
                         function update_markers(obj) {
                             var marker_groups = {};
 
@@ -1094,7 +1102,7 @@ block content
                                     /**
                                      * Create a marker based on provided lat / lon and add it to the layer group
                                      */
-                                    L.marker([obj[key]['lat'], obj[key]['lon']]).bindPopup('<p><b>Country</b>: ' + obj[key]['country'] + '</p><p><b>Address</b>: ' + obj[key]['addr'] + '</p><p><b>Version</b>: ' + version + '</p>').addTo(marker_groups[version]);
+                                    L.marker([obj[key]['lat'], obj[key]['lon']], {icon: vanilla_icon}).bindPopup('<p><b>Country</b>: ' + obj[key]['country'] + '</p><p><b>Address</b>: ' + obj[key]['addr'] + '</p><p><b>Version</b>: ' + version + '</p>').addTo(marker_groups[version]);
 
                                     /**
                                      * If address is found in previous obj, remove it from the current obj
