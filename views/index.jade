@@ -1055,7 +1055,6 @@ block content
 
                         var controls_previous = null;
                         var marker_groups_previous = {};
-                        var obj_previous = {};
 
                         /**
                          * Custom marker icon
@@ -1065,107 +1064,75 @@ block content
                             shadowUrl: '/images/marker-shadow.png'
                         });
 
-                        function update_markers(obj) {
+                        /**
+                         * Update markers with lon/lat pairs from peer_info
+                         */
+                        function update_markers(peer_info) {
                             var marker_groups = {};
+                            var controls_selected = {};
 
                             /**
-                             * Sort obj by DESC subver for proper controls display
+                             * Save checkbox states
                              */
-                            obj.sort(function(a,b) { return a.subver < b.subver });
+                            $('.leaflet-control-layers-overlays :input').each(function() {
+                                controls_selected[$(this)['context']['parentElement']['textContent'].replace(' ','')] = $(this)['context']['checked'];
+                            });
 
                             /**
-                             * Craete a deep copy of obj so we don't alter the original with deletes
+                             * If controls are defined, remove them from the map
                              */
-                            var obj_temp = $.extend(true, [], obj);
+                            if (controls_previous != null) {
+                                controls_previous.removeFrom(peers_map);
+                            }
 
-                            for (var key in obj) {
-                                if (obj[key].hasOwnProperty('lat') && obj[key].hasOwnProperty('lon')) {
-                                    /**
-                                     * Remove / / & 'Vanillacoin:' from the subver string
-                                     */
-                                    var version = obj[key]['subver'].replace(/\//g, '').replace(':',' ');
+                            /**
+                             * Remove previously added overlays
+                             */
+                            for (var i in marker_groups_previous) {
+                                marker_groups_previous[i].clearLayers();
+                            }
 
-                                    /**
-                                     * Set 'No version' for clients not reporting their version
-                                     */
-                                    if (version.length < 2) {
-                                        version = 'No version';
-                                    }
-
+                            /**
+                             * Create layer groups and add markers
+                             */
+                            for (var i in peer_info) {
+                                if (peer_info[i].hasOwnProperty('lat') && peer_info[i].hasOwnProperty('lon')) {
                                     /**
                                      * Add new subver to the object and initialize a new layer group as value
                                      */
-                                    if (!marker_groups.hasOwnProperty(version)) {
-                                        marker_groups[version] = L.layerGroup();
+                                    if (!marker_groups.hasOwnProperty(peer_info[i]['subver_clean'])) {
+                                        marker_groups[peer_info[i]['subver_clean']] = L.layerGroup();
                                     }
 
                                     /**
                                      * Create a marker based on provided lat / lon and add it to the layer group
                                      */
-                                    L.marker([obj[key]['lat'], obj[key]['lon']], {icon: vanilla_icon}).bindPopup('<p><b>Country</b>: ' + obj[key]['country'] + '</p><p><b>Address</b>: ' + obj[key]['addr'] + '</p><p><b>Version</b>: ' + version + '</p>').addTo(marker_groups[version]);
-
-                                    /**
-                                     * If address is found in previous obj, remove it from the current obj
-                                     */
-                                    for (var key_p in obj_previous) {
-                                        if (obj[key]['addr'] == obj_previous[key_p]['addr']) {
-                                            delete obj_temp[key];
-                                            break;
-                                        }
-                                    }
+                                    L.marker([peer_info[i]['lat'], peer_info[i]['lon']], {icon: vanilla_icon}).bindPopup('<p><b>Country</b>: ' + peer_info[i]['country'] + '</p><p><b>Address</b>: ' + peer_info[i]['addr'] + '</p><p><b>Version</b>: ' + peer_info[i]['subver_clean'] + '</p>').addTo(marker_groups[peer_info[i]['subver_clean']]);
                                 }
                             }
 
                             /**
-                             * obj_temp is empty if it's equal to obj_previous and gets all entries deleted
-                             * if not, extra entries will be left inside, so update the map
+                             * Prevent creating empty controls by checking length
                              */
-                            if (Object.keys(obj_temp).length > 0) {
-                                var controls_selected = {};
-
-                                /**
-                                 * Save checkbox states
-                                 */
-                                $('.leaflet-control-layers-overlays :input').each(function() {
-                                    controls_selected[$(this)['context']['parentElement']['textContent'].replace(' ','')] = $(this)['context']['checked'];
-                                });
-
-                                /**
-                                 * If controls are defined, remove them from the map
-                                 */
-                                if (controls_previous != null) {
-                                    controls_previous.removeFrom(peers_map);
-                                }
-
-                                /**
-                                 * Remove previously added overlays
-                                 */
-                                for (var key in marker_groups_previous) {
-                                    marker_groups_previous[key].clearLayers();
-                                }
-
-                                if (Object.keys(marker_groups).length > 0) {
-                                    for (var key in marker_groups) {
-                                        /**
-                                         * If there are no controls present yet, add every overlay
-                                         * else only add currently selected overlays, preserve checkboxes
-                                         */
-                                        if (Object.keys(controls_selected).length == 0) {
-                                            marker_groups[key].addTo(peers_map);
-                                        } else {
-                                            if (controls_selected[key]) {
-                                                marker_groups[key].addTo(peers_map);
-                                            }
+                            if (Object.keys(marker_groups).length > 0) {
+                                for (var i in marker_groups) {
+                                    /**
+                                     * If there are no controls present yet, add every overlay, else only add currently selected overlays (preserve checkboxes)
+                                     */
+                                    if (Object.keys(controls_selected).length == 0) {
+                                        marker_groups[i].addTo(peers_map);
+                                    } else {
+                                        if (controls_selected[i]) {
+                                            marker_groups[i].addTo(peers_map);
                                         }
                                     }
-
-                                    /**
-                                     * Save current objects
-                                     */
-                                    controls_previous = L.control.layers('', marker_groups).addTo(peers_map);
-                                    marker_groups_previous = marker_groups;
-                                    obj_previous = obj;
                                 }
+
+                                /**
+                                 * Save current (different from previous) objects
+                                 */
+                                controls_previous = L.control.layers('', marker_groups).addTo(peers_map);
+                                marker_groups_previous = marker_groups;
                             }
                         }
 
@@ -1176,7 +1143,7 @@ block content
                             $('#table_getpeerinfo').empty();
 
                             /**
-                             * Pass the object to addMarkers for peers graph population
+                             * Update markers on the geomap
                              */
                             update_markers(obj);
 

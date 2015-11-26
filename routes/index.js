@@ -92,7 +92,8 @@ io.on('connection', function(socket) {
                                  {"block_height":476700, "percentage":36},
                                  {"block_height":492000, "percentage":37}],
         "currencies":[],
-        "ip_lonlat_cache":[]
+        'peer_info':[],
+        'peer_info_lonlat_cache':[]
     }
 
     /**
@@ -673,7 +674,10 @@ io.on('connection', function(socket) {
                      * body will evalute to true if value is not: null, undefined, NaN, empty string (""), 0, false
                      */
                     if (body) {
-                        vars['ip_lonlat_cache'].push({"ip":ip, "lon":body['longitude'], "lat":body['latitude'], "country":body['country_name']});
+                        /**
+                         * Add ip geo info to cache
+                         */
+                        vars['peer_info_lonlat_cache'].push({"ip":ip, "lon":body['longitude'], "lat":body['latitude'], "country":body['country_name']});
                     }
                 } else {
                     console.log('HTTPS_freegeoip() incorrect response content-type. Headers: ', response['headers']);
@@ -810,49 +814,107 @@ io.on('connection', function(socket) {
             socket.emit('getincentiveinfo', res.result);
         });
 
-        /**
-         * RPC method 'getpeerinfo'
-         */
-        client.call({"jsonrpc": "2.0", "method": "getpeerinfo", "params": [], "id": 0}, function(err, res) {
-            if (err) { console.log(err); }
-
-            /**
-             * Loop through the results
-             */
-            for (var key_res in res.result) {
-                var ip = res.result[key_res]['addr'].split(':');
-                var found = false;
-
-                /**
-                 * If IP exists in cache, copy over lon, lat, country and add it to result object
-                 */
-                for (var key_vars in vars['ip_lonlat_cache']) {
-                    if (vars['ip_lonlat_cache'][key_vars]['ip'] == ip[0]) {
-                        found = true;
-
-                        res.result[key_res]['lon'] = vars['ip_lonlat_cache'][key_vars]['lon'];
-                        res.result[key_res]['lat'] = vars['ip_lonlat_cache'][key_vars]['lat'];
-                        res.result[key_res]['country'] = vars['ip_lonlat_cache'][key_vars]['country'];
-
-                        break;
-                    }
-                }
-
-                /**
-                 * If IP doesn't exist in cache, call the function to fetch it's lon, lat, country and add it to cache array
-                 */
-                if (!found) {
-                    HTTPS_freegeoip(ip[0]);
-                }
-            }
-
-            socket.emit('getpeerinfo', res.result);
-        });
-
         RPC_listsinceblock();
         RPC_listreceivedbyaddress();
 
         setTimeout(update, 10000);
+    })();
+
+    /**
+     * Update peer info on initial client connection and repeat every 60 seconds
+     */
+    (function update() {
+        client.call({'jsonrpc':'2.0', 'method':'getpeerinfo', 'params':[], 'id':0}, function (error, response) {
+            /**
+             * Log error to the console
+             */
+            if (error) {
+                console.log('RPC getpeerinfo: ' + error);
+            }
+
+            /**
+             * Sort response['result'] by subver, descending order
+             */
+            var response = response['result'].sort(function(a,b) {
+                return a['subver'] < b['subver'];
+            });
+
+            /**
+             * Deep copy response to avoid altering the original with deletes
+             */
+            var response_copy = extend(true, [], response);
+
+            /**
+             * Check if previous and current responses are equal
+             */
+            for (var i in response) {
+                for (var j in vars['peer_info']) {
+                    /**
+                     * If an address is found in previous response and has lon/lat set, then delete it from current response copy
+                     */
+                    if (response[i]['addr'] == vars['peer_info'][j]['addr'] && vars['peer_info'][j]['lon'] && vars['peer_info'][j]['lat']) {
+                        delete response_copy[i];
+                        break;
+                    }
+                }
+            }
+
+            /**
+             * If responses aren't equal, update peer_info and client
+             */
+            if (Object.keys(response_copy).length > 0) {
+                /**
+                 * Set additional properties
+                 */
+                for (var i in response) {
+                    var ip = response[i]['addr'].split(':')[0];
+                    var ip_found = false;
+
+                    for (var j in vars['peer_info_lonlat_cache']) {
+                        /**
+                         * If IP exists in cache, copy over lon, lat, country and add it to response
+                         */
+                        if (vars['peer_info_lonlat_cache'][j]['ip'] == ip) {
+                            ip_found = true;
+
+                            response[i]['lon'] = vars['peer_info_lonlat_cache'][j]['lon'];
+                            response[i]['lat'] = vars['peer_info_lonlat_cache'][j]['lat'];
+                            response[i]['country'] = vars['peer_info_lonlat_cache'][j]['country'];
+
+                            /**
+                             * Clean subver by removing '/' & ':'
+                             */
+                            if (response[i]['subver'].length > 2) {
+                                response[i]['subver_clean'] = response[i]['subver'].replace('/', '').replace('/', '').replace(':',' ');
+                            } else {
+                                response[i]['subver_clean'] = 'No version';
+                            }
+
+                            break;
+                        }
+                    }
+
+                    /**
+                     * If IP doesn't exist in cache, retrieve it
+                     */
+                    if (!ip_found) {
+                        HTTPS_freegeoip(ip);
+                    }
+                }
+
+                /**
+                 * Save current (different from previous) response
+                 */
+                vars['peer_info'] = response;
+
+                /**
+                 * Update client
+                 */
+                socket.emit('getpeerinfo', vars['peer_info']);
+            }
+        });
+
+        setTimeout(update, 60000);
     })();
 });
 
