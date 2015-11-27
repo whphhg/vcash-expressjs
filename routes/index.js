@@ -43,17 +43,13 @@ var nconf = require('nconf').use('file', {file: './config.json'});
     nconf.load();
 
 /**
- * Array deep copying module (https://github.com/dreamerslab/node.extend)
+ * Modules
  */
 var extend = require('node.extend');
-
-/**
- * Request module
- */
 var request = require('request');
 
 /**
- * Run when a client connects
+ * When client connects...
  */
 io.on('connection', function(socket) {
     /**
@@ -66,9 +62,7 @@ io.on('connection', function(socket) {
         'vnl_poloniex':0,
         'vnl_bittrex':0,
         'vnl_average':0,
-        'incentive_rewards':[{'block_number':246900, 'reward_percent':13},
-                             {'block_number':252000, 'reward_percent':14},
-                             {'block_number':257600, 'reward_percent':15},
+        'incentive_rewards':[{'block_number':257600, 'reward_percent':15},
                              {'block_number':263600, 'reward_percent':16},
                              {'block_number':270000, 'reward_percent':17},
                              {'block_number':276900, 'reward_percent':18},
@@ -92,8 +86,10 @@ io.on('connection', function(socket) {
                              {'block_number':476700, 'reward_percent':36},
                              {'block_number':492000, 'reward_percent':37}],
         'currencies':[],
-        'peer_info':[],
-        'peer_info_lonlat':[]
+        'nodes_connected':[],
+        'nodes_network':[],
+        'nodes_geodata':{},
+        'wallet_info':{'udp_connections':0}
     }
 
     /**
@@ -655,7 +651,7 @@ io.on('connection', function(socket) {
     }
 
     /**
-     * Get lon, lat & country for provided IP and update peer_info_lonlat
+     * Get lon, lat & country for provided IP and update nodes_geodata
      */
     function HTTPS_freegeoip(ip) {
         /**
@@ -674,7 +670,7 @@ io.on('connection', function(socket) {
                      * body will evalute to true if value is not: null, undefined, NaN, empty string (""), 0, false
                      */
                     if (body) {
-                        vars['peer_info_lonlat'].push({"ip":ip, "lon":body['longitude'], "lat":body['latitude'], "country":body['country_name']});
+                        vars['nodes_geodata'][ip] = {"lon":body['longitude'], "lat":body['latitude'], "country":body['country_name']};
                     }
                 } else {
                     console.log('HTTPS_freegeoip() incorrect response content-type. Headers: ', response['headers']);
@@ -778,43 +774,61 @@ io.on('connection', function(socket) {
      * Update local data when a client connects and after that every 10 seconds
      */
     (function update() {
-        /**
-         * Read and emit UDP connections from debug.log (only on linux)
-         */
-        if (process.platform == "linux") {
-            var exec = require('child_process').exec
-            child = exec("tail -300 ~/.Vanillacoin/data/debug.log | grep UDP | tail -1 | sed 's/[^0-9]//g'", function(error, stdout, stderr) {
-                socket.emit('udp_connections', stdout);
-
-                if (error !== null) {
-                    console.log('exec error: ' + error);
-                    console.log('stderr: ' + stderr);
-                }
-            });
-        } else {
-            socket.emit('udp_connections', '/');
-        }
-
-        /**
-         * RPC method 'getinfo'
-         */
-        client.call({"jsonrpc": "2.0", "method": "getinfo", "params": [], "id": 0}, function(err, res) {
-            if (err) { console.log(err); }
-            socket.emit('getinfo', res.result);
-        });
-
-        /**
-         * RPC method 'getincentiveinfo'
-         */
-        client.call({"jsonrpc": "2.0", "method": "getincentiveinfo", "params": [], "id": 0}, function(err, res) {
-            if (err) { console.log(err); }
-            socket.emit('getincentiveinfo', res.result);
-        });
-
         RPC_listsinceblock();
         RPC_listreceivedbyaddress();
 
         setTimeout(update, 10000);
+    })();
+
+    /**
+     * Update wallet info on initial client connection and repeat every 10 seconds
+     */
+    (function update() {
+        client.call([{'jsonrpc':'2.0', 'method':'getinfo', 'params':[], 'id':0}, {'jsonrpc':'2.0', 'method':'getincentiveinfo', 'params':[], 'id':0}], function(error, response) {
+            /**
+             * Log error to the console and exit function
+             */
+            if (error) {
+                console.log('RPC getinfo/getincentiveinfo: ', error);
+                return;
+            }
+
+            /**
+             * Loop through both results and update vars['wallet_info'] object
+             */
+            for (var i in response) {
+                for (var j in response[i]['result']) {
+                    vars['wallet_info'][j] = response[i]['result'][j];
+                }
+            }
+
+            /**
+             * Update client
+             */
+            socket.emit('wallet_info', vars['wallet_info']);
+        });
+
+        setTimeout(update, 10000);
+    })();
+
+    /**
+     * Update network info on initial client connection and repeat every 70 seconds
+     */
+    (function update() {
+        client.call({'jsonrpc':'2.0', 'method':'getnetworkinfo', 'params':[], 'id':0}, function(error, response) {
+            /**
+             * Log error to the console and exit function
+             */
+            if (error) {
+                console.log('RPC getnetworkinfo: ', error);
+                return;
+            }
+
+            vars['nodes_network'] = response['result']['endpoints'];
+            vars['wallet_info']['udp_connections'] = response['result']['udp']['connections'];
+        });
+
+        setTimeout(update, 70000);
     })();
 
     /**
@@ -823,10 +837,11 @@ io.on('connection', function(socket) {
     (function update() {
         client.call({'jsonrpc':'2.0', 'method':'getpeerinfo', 'params':[], 'id':0}, function(error, response) {
             /**
-             * Log error to the console
+             * Log error to the console and exit function
              */
             if (error) {
-                console.log('RPC getpeerinfo: ' + error);
+                console.log('RPC getpeerinfo: ', error);
+                return;
             }
 
             /**
@@ -843,10 +858,10 @@ io.on('connection', function(socket) {
 
             for (var i in response) {
                 /**
-                 * Compare with previous response to see if it's equal, and check if lon/lat is set
+                 * Compare with previous response to see if it's equal, and check if lon/lat are set
                  */
-                for (var j in vars['peer_info']) {
-                    if (response[i]['addr'] == vars['peer_info'][j]['addr'] && vars['peer_info'][j]['lon'] && vars['peer_info'][j]['lat']) {
+                for (var j in vars['nodes_connected']) {
+                    if (response[i]['addr'] == vars['nodes_connected'][j]['addr'] && vars['nodes_connected'][j]['lon'] && vars['nodes_connected'][j]['lat']) {
                         delete response_copy[i];
                         break;
                     }
@@ -862,44 +877,36 @@ io.on('connection', function(socket) {
                 }
 
                 /**
-                 * If IP is found, add info to response
+                 * Check if geodata on IP exists, else request it
                  */
                 var ip = response[i]['addr'].split(':')[0];
-                var ip_found = false;
 
-                for (var j in vars['peer_info_lonlat']) {
-                    if (vars['peer_info_lonlat'][j]['ip'] == ip) {
-                        ip_found = true;
-
-                        response[i]['lon'] = vars['peer_info_lonlat'][j]['lon'];
-                        response[i]['lat'] = vars['peer_info_lonlat'][j]['lat'];
-                        response[i]['country'] = vars['peer_info_lonlat'][j]['country'];
-                        break;
-                    }
-                }
-
-                /**
-                 * If IP is not found, request it
-                 */
-                if (!ip_found) {
+                if (vars['nodes_geodata'][ip]) {
+                    response[i]['lon'] = vars['nodes_geodata'][ip]['lon'];
+                    response[i]['lat'] = vars['nodes_geodata'][ip]['lat'];
+                    response[i]['country'] = vars['nodes_geodata'][ip]['country'];
+                } else {
                     HTTPS_freegeoip(ip);
                 }
             }
 
             /**
-             * If responses aren't equal, update peer_info and client
+             * If responses weren't equal
              */
-            if (Object.keys(response_copy).length > 0) {
-                vars['peer_info'] = response;
+            if (Object.keys(response_copy).length != 0) {
+                vars['nodes_connected'] = response;
 
-                socket.emit('peer_info_geomap', vars['peer_info']);
-                socket.emit('peer_info', vars['peer_info']);
+                /**
+                 * Update client, connected nodes table & geomap
+                 */
+                socket.emit('nodes_geomap', vars['nodes_connected']);
+                socket.emit('nodes_connected', vars['nodes_connected']);
             }
 
             /**
-             * Update client table information
+             * Update client, connected nodes table
              */
-            socket.emit('peer_info', response);
+            socket.emit('nodes_connected', response);
         });
 
         setTimeout(update, 60000);

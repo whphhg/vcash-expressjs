@@ -37,25 +37,23 @@ block content
         local_currency = ['', 0, 0];
 
         /**
-         * Update #[span#key] elements with information received from RPC 'getinfo'
+         * Update wallet info #[span#key] elements
          */
-        socket.on('getinfo', function(obj) {
-            for (var key in obj) {
-                if (obj.hasOwnProperty(key)) {
-                    if (key == 'balance') {
-                        $('#' + key).text(accounting.formatMoney(obj[key], '', 6, ',', '.'));
-                    } else {
-                        $('#' + key).text(obj[key]);
-                    }
+        socket.on('wallet_info', function(wallet_info) {
+            for (var i in wallet_info) {
+                if (i == 'balance') {
+                    $('#' + i).text(accounting.formatMoney(wallet_info[i], '', 6, ',', '.'));
+                } else {
+                    $('#' + i).text(wallet_info[i]);
                 }
             }
 
             /**
              * Global variables needed for calculations elsewhere
              */
-            balance = obj['balance'];
-            blocks = obj['blocks'];
-            moneysupply = obj['moneysupply'];
+            balance = wallet_info['balance'];
+            blocks = wallet_info['blocks'];
+            moneysupply = wallet_info['moneysupply'];
 
             /**
              * Set placeholder text for block time estimation calculator
@@ -1000,28 +998,6 @@ block content
                         .span2
                             h4 NEIGHBOURING PEERS
                         .span10.text-right
-                            script.
-                                /**
-                                 * Update UDP connections
-                                 */
-                                socket.on('udp_connections', function(obj) {
-                                    $('#udp_connections').text(obj);
-                                });
-
-                                /**
-                                 * Update with information received from RPC method 'getincentiveinfo'
-                                 */
-                                socket.on('getincentiveinfo', function(obj) {
-                                    /**
-                                     * Update #[span#key] elements
-                                     */
-                                    for (var key in obj) {
-                                        if (obj.hasOwnProperty(key)) {
-                                            $("#" + key).text(obj[key]);
-                                        }
-                                    }
-                                });
-
                             b Vote candidate: 
                             | #[span#votecandidate] &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
                             | #[span#ip]
@@ -1065,9 +1041,9 @@ block content
                         });
 
                         /**
-                         * Update markers with lon/lat pairs from peer_info
+                         * Update markers with lon/lat pairs from nodes_geomap
                          */
-                        socket.on('peer_info_geomap', function(peer_info) {
+                        socket.on('nodes_geomap', function(nodes_geomap) {
                             var marker_groups = {};
                             var controls_selected = {};
 
@@ -1095,19 +1071,19 @@ block content
                             /**
                              * Create layer groups and add markers
                              */
-                            for (var i in peer_info) {
-                                if (peer_info[i].hasOwnProperty('lat') && peer_info[i].hasOwnProperty('lon')) {
+                            for (var i in nodes_geomap) {
+                                if (nodes_geomap[i].hasOwnProperty('lat') && nodes_geomap[i].hasOwnProperty('lon')) {
                                     /**
                                      * Add new subver to the object and initialize a new layer group as value
                                      */
-                                    if (!marker_groups.hasOwnProperty(peer_info[i]['subver_clean'])) {
-                                        marker_groups[peer_info[i]['subver_clean']] = L.layerGroup();
+                                    if (!marker_groups.hasOwnProperty(nodes_geomap[i]['subver_clean'])) {
+                                        marker_groups[nodes_geomap[i]['subver_clean']] = L.layerGroup();
                                     }
 
                                     /**
                                      * Create a marker based on provided lat / lon and add it to the layer group
                                      */
-                                    L.marker([peer_info[i]['lat'], peer_info[i]['lon']], {icon: vanilla_icon}).bindPopup('<p><b>Country</b>: ' + peer_info[i]['country'] + '</p><p><b>Address</b>: ' + peer_info[i]['addr'] + '</p><p><b>Version</b>: ' + peer_info[i]['subver_clean'] + '</p>').addTo(marker_groups[peer_info[i]['subver_clean']]);
+                                    L.marker([nodes_geomap[i]['lat'], nodes_geomap[i]['lon']], {icon: vanilla_icon}).bindPopup('<p><b>Country</b>: ' + nodes_geomap[i]['country'] + '</p><p><b>Address</b>: ' + nodes_geomap[i]['addr'] + '</p><p><b>Version</b>: ' + nodes_geomap[i]['subver_clean'] + '</p>').addTo(marker_groups[nodes_geomap[i]['subver_clean']]);
                                 }
                             }
 
@@ -1139,7 +1115,7 @@ block content
                         /**
                          * List neighbouring peers
                          */
-                        socket.on('peer_info', function(obj) {
+                        socket.on('nodes_connected', function(obj) {
                             $('#table_getpeerinfo').empty();
 
                             var html_table = $('<table class="table table-striped"><thead><tr><th>Address</th><th>Country</th><th>Last send</th><th>Last receive</th><th>Connected on</th><th>Protocol</th><th>Version</th><th>Inbound</th><th>Starting height</th><th>Ban score</th></tr></thead></table>');
