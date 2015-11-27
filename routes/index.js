@@ -60,46 +60,41 @@ io.on('connection', function(socket) {
      * Variables object
      */
     var vars = {
-        "watch_addresses":extend(true, [], nconf.get('watchaddresses')),
-        "local_currency":nconf.get('settings:localcurrency'),
-        "btc_local":0,
-        "vnl_poloniex":0,
-        "vnl_bittrex":0,
-        "vnl_average":0,
-        "incentive_percentages":[{"block_height":246900, "percentage":13},
-                                 {"block_height":252000, "percentage":14},
-                                 {"block_height":257600, "percentage":15},
-                                 {"block_height":263600, "percentage":16},
-                                 {"block_height":270000, "percentage":17},
-                                 {"block_height":276900, "percentage":18},
-                                 {"block_height":284200, "percentage":19},
-                                 {"block_height":292000, "percentage":20},
-                                 {"block_height":300200, "percentage":21},
-                                 {"block_height":308900, "percentage":22},
-                                 {"block_height":318000, "percentage":23},
-                                 {"block_height":327500, "percentage":24},
-                                 {"block_height":337500, "percentage":25},
-                                 {"block_height":347900, "percentage":26},
-                                 {"block_height":358800, "percentage":27},
-                                 {"block_height":370100, "percentage":28},
-                                 {"block_height":381900, "percentage":29},
-                                 {"block_height":394100, "percentage":30},
-                                 {"block_height":406800, "percentage":31},
-                                 {"block_height":419900, "percentage":32},
-                                 {"block_height":433400, "percentage":33},
-                                 {"block_height":447400, "percentage":34},
-                                 {"block_height":461800, "percentage":35},
-                                 {"block_height":476700, "percentage":36},
-                                 {"block_height":492000, "percentage":37}],
-        "currencies":[],
+        'watch_addresses':extend(true, [], nconf.get('watchaddresses')),
+        'local_currency':nconf.get('settings:localcurrency'),
+        'btc_local':0,
+        'vnl_poloniex':0,
+        'vnl_bittrex':0,
+        'vnl_average':0,
+        'incentive_rewards':[{'block_number':246900, 'reward_percent':13},
+                             {'block_number':252000, 'reward_percent':14},
+                             {'block_number':257600, 'reward_percent':15},
+                             {'block_number':263600, 'reward_percent':16},
+                             {'block_number':270000, 'reward_percent':17},
+                             {'block_number':276900, 'reward_percent':18},
+                             {'block_number':284200, 'reward_percent':19},
+                             {'block_number':292000, 'reward_percent':20},
+                             {'block_number':300200, 'reward_percent':21},
+                             {'block_number':308900, 'reward_percent':22},
+                             {'block_number':318000, 'reward_percent':23},
+                             {'block_number':327500, 'reward_percent':24},
+                             {'block_number':337500, 'reward_percent':25},
+                             {'block_number':347900, 'reward_percent':26},
+                             {'block_number':358800, 'reward_percent':27},
+                             {'block_number':370100, 'reward_percent':28},
+                             {'block_number':381900, 'reward_percent':29},
+                             {'block_number':394100, 'reward_percent':30},
+                             {'block_number':406800, 'reward_percent':31},
+                             {'block_number':419900, 'reward_percent':32},
+                             {'block_number':433400, 'reward_percent':33},
+                             {'block_number':447400, 'reward_percent':34},
+                             {'block_number':461800, 'reward_percent':35},
+                             {'block_number':476700, 'reward_percent':36},
+                             {'block_number':492000, 'reward_percent':37}],
+        'currencies':[],
         'peer_info':[],
-        'peer_info_lonlat_cache':[]
+        'peer_info_lonlat':[]
     }
-
-    /**
-     * Emit incentive percentages
-     */
-    socket.emit('incentive_percentages', vars['incentive_percentages']);
 
     /**
      * Generate and emit QR code
@@ -348,15 +343,15 @@ io.on('connection', function(socket) {
     /**
      * Calculate and emit incentive reward % based on provided block number
      */
-    socket.on('calculate_percentage', function(block_number) {
-        for (var key in vars['incentive_percentages']) {
-            if (block_number < parseInt(vars['incentive_percentages'][key]['block_height'])) {
-                socket.emit('return_percentage', parseInt(vars['incentive_percentages'][key]['percentage']) - 1);
+    socket.on('incentive_reward', function(block_number) {
+        for (var i in vars['incentive_rewards']) {
+            if (block_number < parseInt(vars['incentive_rewards'][i]['block_number'])) {
+                socket.emit('incentive_reward_return', parseInt(vars['incentive_rewards'][i]['reward_percent']) - 1);
                 break;
             }
 
-            if (parseInt(key) == vars['incentive_percentages'].length - 1) {
-                socket.emit('return_percentage', parseInt(vars['incentive_percentages'][key]['percentage']));
+            if (parseInt(i) == vars['incentive_rewards'].length - 1) {
+                socket.emit('incentive_reward_return', parseInt(vars['incentive_rewards'][i]['reward_percent']));
             }
         }
     });
@@ -484,6 +479,7 @@ io.on('connection', function(socket) {
      */
     function HTTPS_fixerio() {
         request('https://api.fixer.io/latest?base=USD', function(error, response, body) {
+            if (!response) { return; }
             if (!error) {
                 fixerio = JSON.parse(body);
                 fixerio = fixerio.rates;
@@ -517,6 +513,7 @@ io.on('connection', function(socket) {
      */
     function HTTPS_bitstamp() {
         request('https://www.bitstamp.net/api/ticker_hour/', function(error, response, body) {
+            if (!response) { return; }
             if (!error) {
                 btc = JSON.parse(body);
 
@@ -537,6 +534,7 @@ io.on('connection', function(socket) {
      */
     function HTTPS_poloniextradehistory() {
         request('https://poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL', function(error, response, body) {
+            if (!response) { return; }
             if (!error) {
                 /**
                  * Make sure that response content-type is JSON
@@ -565,6 +563,7 @@ io.on('connection', function(socket) {
      */
     function HTTPS_bittrextradehistory() {
         request('https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50', function(error, response, body) {
+            if (!response) { return; }
             if (!error) {
                 /**
                  * Make sure that response content-type is JSON
@@ -656,13 +655,14 @@ io.on('connection', function(socket) {
     }
 
     /**
-     * Get lon, lat & country for provided IP and update ip_lonlat_cache array
+     * Get lon, lat & country for provided IP and update peer_info_lonlat
      */
     function HTTPS_freegeoip(ip) {
         /**
          * http://ip-api.com/json/_IP_ (was more accurate, but is http only)
          */
         request('https://freegeoip.net/json/$ip'.replace('$ip', ip), function(error, response, body) {
+            if (!response) { return; }
             if (!error) {
                 /**
                  * Make sure that response content-type is JSON
@@ -674,10 +674,7 @@ io.on('connection', function(socket) {
                      * body will evalute to true if value is not: null, undefined, NaN, empty string (""), 0, false
                      */
                     if (body) {
-                        /**
-                         * Add ip geo info to cache
-                         */
-                        vars['peer_info_lonlat_cache'].push({"ip":ip, "lon":body['longitude'], "lat":body['latitude'], "country":body['country_name']});
+                        vars['peer_info_lonlat'].push({"ip":ip, "lon":body['longitude'], "lat":body['latitude'], "country":body['country_name']});
                     }
                 } else {
                     console.log('HTTPS_freegeoip() incorrect response content-type. Headers: ', response['headers']);
@@ -824,7 +821,7 @@ io.on('connection', function(socket) {
      * Update peer info on initial client connection and repeat every 60 seconds
      */
     (function update() {
-        client.call({'jsonrpc':'2.0', 'method':'getpeerinfo', 'params':[], 'id':0}, function (error, response) {
+        client.call({'jsonrpc':'2.0', 'method':'getpeerinfo', 'params':[], 'id':0}, function(error, response) {
             /**
              * Log error to the console
              */
@@ -844,18 +841,48 @@ io.on('connection', function(socket) {
              */
             var response_copy = extend(true, [], response);
 
-            /**
-             * Check if previous and current responses are equal
-             */
             for (var i in response) {
+                /**
+                 * Compare with previous response to see if it's equal, and check if lon/lat is set
+                 */
                 for (var j in vars['peer_info']) {
-                    /**
-                     * If an address is found in previous response and has lon/lat set, then delete it from current response copy
-                     */
                     if (response[i]['addr'] == vars['peer_info'][j]['addr'] && vars['peer_info'][j]['lon'] && vars['peer_info'][j]['lat']) {
                         delete response_copy[i];
                         break;
                     }
+                }
+
+                /**
+                 * Add clean subver with '/' & ':' removed
+                 */
+                if (response[i]['subver']) {
+                    response[i]['subver_clean'] = response[i]['subver'].replace('/', '').replace('/', '').replace(':',' ');
+                } else {
+                    response[i]['subver_clean'] = 'No version';
+                }
+
+                /**
+                 * If IP is found, add info to response
+                 */
+                var ip = response[i]['addr'].split(':')[0];
+                var ip_found = false;
+
+                for (var j in vars['peer_info_lonlat']) {
+                    if (vars['peer_info_lonlat'][j]['ip'] == ip) {
+                        ip_found = true;
+
+                        response[i]['lon'] = vars['peer_info_lonlat'][j]['lon'];
+                        response[i]['lat'] = vars['peer_info_lonlat'][j]['lat'];
+                        response[i]['country'] = vars['peer_info_lonlat'][j]['country'];
+                        break;
+                    }
+                }
+
+                /**
+                 * If IP is not found, request it
+                 */
+                if (!ip_found) {
+                    HTTPS_freegeoip(ip);
                 }
             }
 
@@ -863,55 +890,16 @@ io.on('connection', function(socket) {
              * If responses aren't equal, update peer_info and client
              */
             if (Object.keys(response_copy).length > 0) {
-                /**
-                 * Set additional properties
-                 */
-                for (var i in response) {
-                    var ip = response[i]['addr'].split(':')[0];
-                    var ip_found = false;
-
-                    for (var j in vars['peer_info_lonlat_cache']) {
-                        /**
-                         * If IP exists in cache, copy over lon, lat, country and add it to response
-                         */
-                        if (vars['peer_info_lonlat_cache'][j]['ip'] == ip) {
-                            ip_found = true;
-
-                            response[i]['lon'] = vars['peer_info_lonlat_cache'][j]['lon'];
-                            response[i]['lat'] = vars['peer_info_lonlat_cache'][j]['lat'];
-                            response[i]['country'] = vars['peer_info_lonlat_cache'][j]['country'];
-
-                            /**
-                             * Clean subver by removing '/' & ':'
-                             */
-                            if (response[i]['subver'].length > 2) {
-                                response[i]['subver_clean'] = response[i]['subver'].replace('/', '').replace('/', '').replace(':',' ');
-                            } else {
-                                response[i]['subver_clean'] = 'No version';
-                            }
-
-                            break;
-                        }
-                    }
-
-                    /**
-                     * If IP doesn't exist in cache, retrieve it
-                     */
-                    if (!ip_found) {
-                        HTTPS_freegeoip(ip);
-                    }
-                }
-
-                /**
-                 * Save current (different from previous) response
-                 */
                 vars['peer_info'] = response;
 
-                /**
-                 * Update client
-                 */
-                socket.emit('getpeerinfo', vars['peer_info']);
+                socket.emit('peer_info_geomap', vars['peer_info']);
+                socket.emit('peer_info', vars['peer_info']);
             }
+
+            /**
+             * Update client table information
+             */
+            socket.emit('peer_info', response);
         });
 
         setTimeout(update, 60000);
@@ -922,7 +910,7 @@ io.on('connection', function(socket) {
  * GET home page
  */
 router.get('/', function(req, res, next) {
-    res.render('index', {title: 'vanillacoind-web-ui'});
+    res.render('index', {title: 'Vanilla WebUI'});
 });
 
 module.exports = router;

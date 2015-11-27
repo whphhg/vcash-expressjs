@@ -956,7 +956,7 @@ block content
                                                     /**
                                                      * Calculate %
                                                      */
-                                                    socket.emit('calculate_percentage', future_block);
+                                                    socket.emit('incentive_reward', future_block);
 
                                                     /**
                                                      * Calculate PoW reward (from https://github.com/john-connor/vanillacoin/blob/master/src/reward.cpp)
@@ -970,7 +970,7 @@ block content
                                                     /**
                                                      * Update text with % and incentive reward (in coins)
                                                      */
-                                                    socket.on('return_percentage', function(obj) {
+                                                    socket.on('incentive_reward_return', function(obj) {
                                                         $('#future_block_percentage').text(obj + '%');
                                                         $('#incentive_reward').text(((subsidy / 100) * obj).toFixed(6));
                                                     });
@@ -1067,7 +1067,7 @@ block content
                         /**
                          * Update markers with lon/lat pairs from peer_info
                          */
-                        function update_markers(peer_info) {
+                        socket.on('peer_info_geomap', function(peer_info) {
                             var marker_groups = {};
                             var controls_selected = {};
 
@@ -1134,18 +1134,13 @@ block content
                                 controls_previous = L.control.layers('', marker_groups).addTo(peers_map);
                                 marker_groups_previous = marker_groups;
                             }
-                        }
+                        });
 
                         /**
                          * List neighbouring peers
                          */
-                        socket.on('getpeerinfo', function(obj) {
+                        socket.on('peer_info', function(obj) {
                             $('#table_getpeerinfo').empty();
-
-                            /**
-                             * Update markers on the geomap
-                             */
-                            update_markers(obj);
 
                             var html_table = $('<table class="table table-striped"><thead><tr><th>Address</th><th>Country</th><th>Last send</th><th>Last receive</th><th>Connected on</th><th>Protocol</th><th>Version</th><th>Inbound</th><th>Starting height</th><th>Ban score</th></tr></thead></table>');
 
@@ -1169,7 +1164,7 @@ block content
                                     var country = '-----';
                                 }
 
-                                html_table.append('<tr><td>' + obj[key]['addr'] + '</td><td>' + country + '</td><td>' + lastsend + '</td><td>' + lastrecv + '</td><td>' + conntime + '</td><td>' + obj[key]['version'] + '</td><td>' + obj[key]['subver'].replace(/\//g, '') + '</td><td>' + obj[key]['inbound'] + '</td><td>' + obj[key]['startingheight'] + '</td><td>' + obj[key]['banscore'] + '/100</td></tr>');
+                                html_table.append('<tr><td>' + obj[key]['addr'] + '</td><td>' + country + '</td><td>' + lastsend + '</td><td>' + lastrecv + '</td><td>' + conntime + '</td><td>' + obj[key]['version'] + '</td><td>' + obj[key]['subver_clean'] + '</td><td>' + obj[key]['inbound'] + '</td><td>' + obj[key]['startingheight'] + '</td><td>' + obj[key]['banscore'] + '/100</td></tr>');
                             }
 
                             $('#table_getpeerinfo').append(html_table);
