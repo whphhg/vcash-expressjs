@@ -42,26 +42,24 @@ var client = new rpc.Client({port: 9195, host: '127.0.0.1', path: '/', strict: t
 var nconf = require('nconf').use('file', {file: './config.json'});
     nconf.load();
 
-/**
- * Modules
- */
 var extend = require('node.extend');
 var request = require('request');
 
 /**
- * When client connects...
+ * When a client connects...
  */
 io.on('connection', function(socket) {
-    /**
-     * Variables object
-     */
     var vars = {
-        'watch_addresses':extend(true, [], nconf.get('watchaddresses')),
-        'local_currency':nconf.get('settings:localcurrency'),
-        'btc_local':0,
-        'vnl_poloniex':0,
-        'vnl_bittrex':0,
-        'vnl_average':0,
+        'settings':nconf.get('settings'),
+        'vanilla_rates':nconf.get('vanilla_rates'),
+        'exchange_rates':nconf.get('exchange_rates'),
+        'watch_addresses':nconf.get('watch_addresses'),
+        'nodes_connected':[],
+        'nodes_network':[],
+        'nodes_geodata':{},
+        'wallet_info':{'udp_connections':0},
+        'listreceivedbyaddress':[],
+        'listsinceblock':[],
         'incentive_rewards':[{'block_number':257600, 'reward_percent':15},
                              {'block_number':263600, 'reward_percent':16},
                              {'block_number':270000, 'reward_percent':17},
@@ -84,13 +82,67 @@ io.on('connection', function(socket) {
                              {'block_number':447400, 'reward_percent':34},
                              {'block_number':461800, 'reward_percent':35},
                              {'block_number':476700, 'reward_percent':36},
-                             {'block_number':492000, 'reward_percent':37}],
-        'currencies':[],
-        'nodes_connected':[],
-        'nodes_network':[],
-        'nodes_geodata':{},
-        'wallet_info':{'udp_connections':0}
+                             {'block_number':492000, 'reward_percent':37}]
     }
+
+    /**
+     * Resend requested property of vars
+     */
+    socket.on('resend_vars', function(key) {
+        if (vars.hasOwnProperty(key)) {
+            socket.emit(key, vars[key]);
+        }
+    });
+
+    /**
+     * Update client with exchange and vanilla rates
+     */
+    socket.emit('exchange_rates', vars['exchange_rates']['rates']);
+
+    /**
+     * Update config and client with provided local currency
+     */
+    socket.on('currency_change', function(currency) {
+        vars['settings']['local_currency'] = currency;
+
+        nconf.set('settings:local_currency', vars['settings']['local_currency']);
+        nconf.save(function(error) {
+            if (error) {
+                console.log(error['message']);
+                return;
+            }
+        });
+
+        socket.emit('currency_info', [vars['settings']['local_currency'], vars['exchange_rates']['rates'][vars['settings']['local_currency']]['btc'], vars['vanilla_rates']['average']]);
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     /**
      * Generate and emit QR code
@@ -110,27 +162,7 @@ io.on('connection', function(socket) {
         HTTPS_getwatchaddresses();
     });
 
-    /**
-     * Save new local currency to config.json & update
-     */
-    socket.on('set_local_currency', function(currency) {
-        nconf.set('settings:localcurrency', currency);
-        nconf.save(function(err) {
-            if (err) {
-                console.error(err.message);
-                return;
-            }
 
-            /**
-             * Update local currencies accros the page
-             */
-            vars['local_currency'] = currency;
-            update_prices(currency);
-            RPC_listreceivedbyaddress();
-            RPC_listsinceblock();
-            socket.emit('watchaddresses', vars['watch_addresses']);
-        });
-    });
 
     /**
      * Encrypt wallet
@@ -228,7 +260,7 @@ io.on('connection', function(socket) {
             if (err) { console.log(err); }
 
             var already_added = false;
-            var configaddresses = nconf.get('watchaddresses');
+            var configaddresses = nconf.get('watch_addresses');
 
             /**
              * Check if the address is already saved
@@ -243,7 +275,7 @@ io.on('connection', function(socket) {
             if (res.result['isvalid'] && !res.result['ismine'] && !already_added) {
                 configaddresses.push({"address":address, "title":title});
 
-                nconf.set('watchaddresses', configaddresses);
+                nconf.set('watch_addresses', configaddresses);
                 nconf.save(function(err) {
                     if (err) {
                         console.error(err.message);
@@ -450,139 +482,30 @@ io.on('connection', function(socket) {
         });
     });
 
-    /**
-     * Update prices across the page with provided local currency
-     */
-    function update_prices(currency) {
-        if (vars['vnl_poloniex'] != 0 && vars['vnl_bittrex'] != 0) {
-            vars['vnl_average'] = (vars['vnl_poloniex'] + vars['vnl_bittrex']) / 2;
-        } else {
-            vars['vnl_average'] = vars['vnl_poloniex'] + vars['vnl_bittrex'];
-        }
 
-        for (var key in vars['currencies']) {
-            if (vars['currencies'][key]['name'] == currency) {
-                vars['btc_local'] = vars['currencies'][key]['btc'];
-                break;
-            }
-        }
 
-        socket.emit('local_currency', [vars['local_currency'], vars['btc_local'], vars['vnl_average']]);
-    }
 
-    /**
-     * JSON API for foreign exchange rates. Get current foreign exchange rates published by the European Central Bank. Updated daily
-     */
-    function HTTPS_fixerio() {
-        request('https://api.fixer.io/latest?base=USD', function(error, response, body) {
-            if (!response) { return; }
-            if (!error) {
-                fixerio = JSON.parse(body);
-                fixerio = fixerio.rates;
 
-                for (var key in fixerio) {
-                    if (fixerio.hasOwnProperty(key)) {
-                        /**
-                         * Insert into currencies array
-                         */
-                        vars['currencies'].push({'name':key, 'one_usd_buys':fixerio[key]});
-                    }
-                }
 
-                /**
-                 * Because base is USD set USD to 1
-                 */
-                vars['currencies'].push({'name':'USD', 'one_usd_buys':1});
 
-                /**
-                 * Emit to client
-                 */
-                socket.emit('fixerio', vars['currencies']);
-            } else {
-                console.log('HTTPS_fixerio()', error);
-            }
-        });
-    }
 
-    /**
-     * Latest BTC value in USD from Bistamp. Returns JSON dictionary like https://www.bitstamp.net/api/ticker/, but calculated values are from within an hour
-     */
-    function HTTPS_bitstamp() {
-        request('https://www.bitstamp.net/api/ticker_hour/', function(error, response, body) {
-            if (!response) { return; }
-            if (!error) {
-                btc = JSON.parse(body);
 
-                /**
-                 * Update price for 1 BTC in local currency
-                 */
-                for (var key in vars['currencies']) {
-                    vars['currencies'][key]['btc'] = vars['currencies'][key]['one_usd_buys'] * btc['last'];
-                }
-            } else {
-                console.log('HTTPS_bitstamp()', error);
-            }
-        });
-    }
 
-    /**
-     * Get last 200 trades from Poloniex
-     */
-    function HTTPS_poloniextradehistory() {
-        request('https://poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL', function(error, response, body) {
-            if (!response) { return; }
-            if (!error) {
-                /**
-                 * Make sure that response content-type is JSON
-                 */
-                if (response['headers']['content-type'] == 'application/json') {
-                    body = JSON.parse(body);
 
-                    /**
-                     * body will evalute to true if value is not: null, undefined, NaN, empty string (""), 0, false
-                     */
-                    if (body) {
-                        vars['vnl_poloniex'] = parseFloat(body[0]['rate']);
-                        socket.emit('poloniextradehistory', body);
-                    }
-                } else {
-                    console.log('HTTPS_poloniextradehistory() incorrect response content-type. Headers: ', response['headers']);
-                }
-            } else {
-                console.log('HTTPS_poloniextradehistory()', error);
-            }
-        });
-    }
 
-    /**
-     * Get last 50 trades from Bittrex
-     */
-    function HTTPS_bittrextradehistory() {
-        request('https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50', function(error, response, body) {
-            if (!response) { return; }
-            if (!error) {
-                /**
-                 * Make sure that response content-type is JSON
-                 */
-                if (response['headers']['content-type'] == 'application/json; charset=utf-8') {
-                    body = JSON.parse(body);
-                    body = body.result;
 
-                    /**
-                     * body will evalute to true if value is not: null, undefined, NaN, empty string (""), 0, false
-                     */
-                    if (body) {
-                        vars['vnl_bittrex'] = parseFloat(body[0]['Price']);
-                        socket.emit('bittrextradehistory', body);
-                    }
-                } else {
-                    console.log('HTTPS_bittrextradehistory() incorrect response content-type. Headers: ', response['headers']);
-                }
-            } else {
-                console.log('HTTPS_bittrextradehistory()', error);
-            }
-        });
-    }
+
+
+
+
+
+
+
+
+
+
+
+
 
     /**
      * Get and set balances then emit the updated array
@@ -640,15 +563,76 @@ io.on('connection', function(socket) {
         /**
          * Emit the array with 'Updating...' as balances on first load
          */
-        socket.emit('watchaddresses', vars['watch_addresses']);
+        socket.emit('watch_addresses', vars['watch_addresses']);
 
         /**
          * Emit it again after 1 second when balances (should) update. Increase this timeout if you've added a lot of watch-only addresses
          */
         setTimeout(function() {
-            socket.emit('watchaddresses', vars['watch_addresses']);
+            socket.emit('watch_addresses', vars['watch_addresses']);
         }, 1000);
     }
+
+    /**
+     * Update watch address data when a client connects and after that every 15 minutes
+     */
+    (function update() {
+        HTTPS_getwatchaddresses();
+
+        setTimeout(update, 900000);
+    })();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    /**
+     * RPC method 'walletpassphrase' without params. Returns error codes needed on client
+     */
+    function RPC_walletpassphrase() {
+        client.call({"jsonrpc": "2.0", "method": "walletpassphrase", "params": [], "id": 0}, function(err, res) {
+            if (err) { console.log(err); }
+            socket.emit('wallet_passphrase_check', res.error);
+        });
+    }
+
+    /**
+     * Check wallet state (locked, unlocked, unencrypted) when a client connects
+     */
+    RPC_walletpassphrase();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     /**
      * Get lon, lat & country for provided IP and update nodes_geodata
@@ -681,103 +665,96 @@ io.on('connection', function(socket) {
         });
     }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     /**
-     * RPC method 'listreceivedbyaddress' params 'minconf:1, includeempty:true'
+     * RPC method 'listreceivedbyaddress'
      */
     function RPC_listreceivedbyaddress() {
-        client.call({"jsonrpc": "2.0", "method": "listreceivedbyaddress", "params": {"minconf":1,"includeempty":true}, "id": 0}, function(err, res) {
-            if (err) { console.log(err); }
-            socket.emit('listreceivedbyaddress', res.result);
+        client.call({'jsonrpc':'2.0', 'method':'listreceivedbyaddress', 'params':{'minconf':1, 'includeempty':true}, 'id':0}, function(error, response) {
+            if (error || !response) {
+                console.log('RPC listsinceblock ERROR\n\n', error);
+                return;
+            }
+
+            vars['listreceivedbyaddress'] = response['result'];
+            socket.emit('listreceivedbyaddress', vars['listreceivedbyaddress']);
         });
     }
 
     /**
-     * RPC method 'walletpassphrase' without params. Returns error codes needed on client
-     */
-    function RPC_walletpassphrase() {
-        client.call({"jsonrpc": "2.0", "method": "walletpassphrase", "params": [], "id": 0}, function(err, res) {
-            if (err) { console.log(err); }
-            socket.emit('wallet_passphrase_check', res.error);
-        });
-    }
-
-    /**
-     * RPC method 'listsinceblock'
+     * RPC method 'listsinceblock
      */
     function RPC_listsinceblock() {
-        client.call({"jsonrpc": "2.0", "method": "listsinceblock", "params": [], "id": 0}, function(err, res) {
-            if (err) { console.log(err); }
-            socket.emit('listsinceblock', res.result.transactions);
+        client.call({'jsonrpc':'2.0', 'method':'listsinceblock', 'params':[], 'id':0}, function(error, response) {
+            if (error || !response) {
+                console.log('RPC listsinceblock ERROR\n\n', error);
+                return;
+            }
+
+            vars['listsinceblock'] = response['result']['transactions'];
+            socket.emit('listsinceblock', vars['listsinceblock']);
         });
     }
 
     /**
-     * Check wallet state (locked, unlocked, unencrypted) when a client connects
+     * Get foreign exchange rates published by the European Central Bank (base USD)
      */
-    RPC_walletpassphrase();
+    (function() {
+        request('https://api.fixer.io/latest?base=USD', function(error, response, body) {
+            if (error || !response) {
+                console.log('HTTPS api.fixer.io/latest?base=USD ERROR\n\n', error);
+                return;
+            }
 
-    /**
-     * Get current foreign exchange rates published by the European Central Bank. Updated daily
-     */
-    HTTPS_fixerio();
+            if (response['headers']['content-type'] == 'application/json') {
+                var body = JSON.parse(body);
 
-    /**
-     * Update exchange trade histories when a client connects and after that every minute
-     */
-    (function update() {
-        HTTPS_poloniextradehistory();
-        HTTPS_bittrextradehistory();
+                if (body.hasOwnProperty('date') && body.hasOwnProperty('base') && body.hasOwnProperty('rates')) {
+                    /**
+                     * Check if response is newer than the one in config
+                     */
+                    if (body['date'] != nconf.get('exchange_rates:date')) {
+                        vars['exchange_rates']['date'] = body['date'];
+                        vars['exchange_rates']['base'] = body['base'];
 
-        setTimeout(update, 60000);
-    })();
+                        for (var i in body['rates']) {
+                            vars['exchange_rates']['rates'][i] = {'rate':body['rates'][i]};
+                        }
 
-    /**
-     * Update watch address data when a client connects and after that every 15 minutes
-     */
-    (function update() {
-        HTTPS_getwatchaddresses();
-
-        setTimeout(update, 900000);
-    })();
-
-    /**
-     * Update local currencies with default values (0)
-     */
-    update_prices(vars['local_currency']);
-
-    /**
-     * Update prices to local currency set in nconf 2 seconds after client connects and after that every minute
-     */
-    setTimeout(function() {
-        (function update() {
-            update_prices(vars['local_currency']);
-            setTimeout(update, 60000);
-        })();
-
-        RPC_listreceivedbyaddress();
-        RPC_listsinceblock();
-        socket.emit('watchaddresses', vars['watch_addresses']);
-    }, 2000);
-
-    /**
-     * Update price for 1 BTC in local currency 1 second after client connects and after that every hour
-     */
-    setTimeout(function() {
-        (function update() {
-            HTTPS_bitstamp();
-
-            setTimeout(update, 3600000);
-        })();
-    }, 1000);
-
-    /**
-     * Update local data when a client connects and after that every 10 seconds
-     */
-    (function update() {
-        RPC_listsinceblock();
-        RPC_listreceivedbyaddress();
-
-        setTimeout(update, 10000);
+                        /**
+                         * Because USD is used as base set its rate to 1
+                         */
+                        vars['exchange_rates']['rates']['USD'] = {'rate':1};
+                    }
+                }
+            }
+        });
     })();
 
     /**
@@ -785,26 +762,17 @@ io.on('connection', function(socket) {
      */
     (function update() {
         client.call([{'jsonrpc':'2.0', 'method':'getinfo', 'params':[], 'id':0}, {'jsonrpc':'2.0', 'method':'getincentiveinfo', 'params':[], 'id':0}], function(error, response) {
-            /**
-             * Log error to the console and exit function
-             */
-            if (error) {
-                console.log('RPC getinfo/getincentiveinfo: ', error);
+            if (error || !response) {
+                console.log('RPC getinfo && getincentiveinfo ERROR\n\n', error);
                 return;
             }
 
-            /**
-             * Loop through both results and update vars['wallet_info'] object
-             */
             for (var i in response) {
                 for (var j in response[i]['result']) {
                     vars['wallet_info'][j] = response[i]['result'][j];
                 }
             }
 
-            /**
-             * Update client
-             */
             socket.emit('wallet_info', vars['wallet_info']);
         });
 
@@ -812,57 +780,47 @@ io.on('connection', function(socket) {
     })();
 
     /**
-     * Update network info on initial client connection and repeat every 70 seconds
+     * Update nodes info on initial client connection and repeat every 60 seconds
      */
     (function update() {
-        client.call({'jsonrpc':'2.0', 'method':'getnetworkinfo', 'params':[], 'id':0}, function(error, response) {
-            /**
-             * Log error to the console and exit function
-             */
-            if (error) {
-                console.log('RPC getnetworkinfo: ', error);
+        client.call([{'jsonrpc':'2.0', 'method':'getpeerinfo', 'params':[], 'id':0}, {'jsonrpc':'2.0', 'method':'getnetworkinfo', 'params':[], 'id':0}], function(error, response) {
+            if (error || !response) {
+                console.log('RPC getpeerinfo && getnetworkinfo ERROR\n\n', error);
                 return;
             }
 
-            vars['nodes_network'] = response['result']['endpoints'];
-            vars['wallet_info']['udp_connections'] = response['result']['udp']['connections'];
-        });
-
-        setTimeout(update, 70000);
-    })();
-
-    /**
-     * Update peer info on initial client connection and repeat every 60 seconds
-     */
-    (function update() {
-        client.call({'jsonrpc':'2.0', 'method':'getpeerinfo', 'params':[], 'id':0}, function(error, response) {
-            /**
-             * Log error to the console and exit function
-             */
-            if (error) {
-                console.log('RPC getpeerinfo: ', error);
-                return;
-            }
+            var getpeerinfo = response[0]['result'];
+            var getnetworkinfo = response[1]['result'];
 
             /**
-             * Sort response['result'] by subver, descending order
+             * Update udp connection count
              */
-            var response = response['result'].sort(function(a,b) {
+            vars['wallet_info']['udp_connections'] = getnetworkinfo['udp']['connections'];
+
+            /**
+             * TODO: Add radio button to geomap controls: Whole network / Connected nodes
+             */
+            vars['nodes_network'] = getnetworkinfo['endpoints'];
+
+            /**
+             * Sort getpeerinfo by subver, descending order
+             */
+            getpeerinfo.sort(function(a,b) {
                 return a['subver'] < b['subver'];
             });
 
             /**
-             * Deep copy response to avoid altering the original with deletes
+             * Deep copy getpeerinfo to avoid altering the original with deletes
              */
-            var response_copy = extend(true, [], response);
+            var getpeerinfo_copy = extend(true, [], getpeerinfo);
 
-            for (var i in response) {
+            for (var i in getpeerinfo) {
                 /**
-                 * Compare with previous response to see if it's equal, and check if lon/lat are set
+                 * Check if address exists in previous result and if it has lon/lat
                  */
                 for (var j in vars['nodes_connected']) {
-                    if (response[i]['addr'] == vars['nodes_connected'][j]['addr'] && vars['nodes_connected'][j]['lon'] && vars['nodes_connected'][j]['lat']) {
-                        delete response_copy[i];
+                    if (getpeerinfo[i]['addr'] == vars['nodes_connected'][j]['addr'] && vars['nodes_connected'][j]['lon'] && vars['nodes_connected'][j]['lat']) {
+                        delete getpeerinfo_copy[i];
                         break;
                     }
                 }
@@ -870,51 +828,159 @@ io.on('connection', function(socket) {
                 /**
                  * Add clean subver with '/' & ':' removed
                  */
-                if (response[i]['subver']) {
-                    response[i]['subver_clean'] = response[i]['subver'].replace('/', '').replace('/', '').replace(':',' ');
+                if (getpeerinfo[i]['subver']) {
+                    getpeerinfo[i]['subver_clean'] = getpeerinfo[i]['subver'].replace('/', '').replace('/', '').replace(':',' ');
                 } else {
-                    response[i]['subver_clean'] = 'No version';
+                    getpeerinfo[i]['subver_clean'] = 'No version';
                 }
 
                 /**
-                 * Check if geodata on IP exists, else request it
+                 * Check if there's geodata on IP, else request it
                  */
-                var ip = response[i]['addr'].split(':')[0];
+                var ip = getpeerinfo[i]['addr'].split(':')[0];
 
                 if (vars['nodes_geodata'][ip]) {
-                    response[i]['lon'] = vars['nodes_geodata'][ip]['lon'];
-                    response[i]['lat'] = vars['nodes_geodata'][ip]['lat'];
-                    response[i]['country'] = vars['nodes_geodata'][ip]['country'];
+                    getpeerinfo[i]['lon'] = vars['nodes_geodata'][ip]['lon'];
+                    getpeerinfo[i]['lat'] = vars['nodes_geodata'][ip]['lat'];
+                    getpeerinfo[i]['country'] = vars['nodes_geodata'][ip]['country'];
                 } else {
                     HTTPS_freegeoip(ip);
                 }
             }
 
             /**
-             * If responses weren't equal
+             * Check if getpeerinfo results differ
              */
-            if (Object.keys(response_copy).length != 0) {
-                vars['nodes_connected'] = response;
-
-                /**
-                 * Update client, connected nodes table & geomap
-                 */
+            if (getpeerinfo_copy.length != 0) {
+                vars['nodes_connected'] = getpeerinfo;
                 socket.emit('nodes_geomap', vars['nodes_connected']);
-                socket.emit('nodes_connected', vars['nodes_connected']);
             }
 
-            /**
-             * Update client, connected nodes table
-             */
-            socket.emit('nodes_connected', response);
+            socket.emit('nodes_connected', getpeerinfo);
         });
 
         setTimeout(update, 60000);
     })();
+
+    /**
+     * Update latest trades from Poloniex & Bittrex on initial client connection and repeat every 75 seconds
+     */
+    (function update() {
+        request('https://poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL', function(error, response, body) {
+            if (error || !response) {
+                console.log('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL ERROR\n\n', error);
+                return;
+            }
+
+            if (response['headers']['content-type'] == 'application/json') {
+                var body = JSON.parse(body);
+
+                if (body) {
+                    vars['vanilla_rates']['poloniex'] = parseFloat(body[0]['rate']);
+                    socket.emit('poloniex_latest_trades', body);
+                }
+            }
+        });
+
+        request('https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50', function(error, response, body) {
+            if (error || !response) {
+                console.log('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50 ERROR\n\n', error);
+                return;
+            }
+
+            if (response['headers']['content-type'] == 'application/json; charset=utf-8') {
+                var body = JSON.parse(body);
+
+                if (body) {
+                    vars['vanilla_rates']['bittrex'] = parseFloat(body['result'][0]['Price']);
+                    socket.emit('bittrex_latest_trades', body['result']);
+                }
+            }
+        });
+
+        /**
+         * Update average vanilla rate
+         */
+        setTimeout(function() {
+            if (vars['vanilla_rates']['poloniex'] && vars['vanilla_rates']['bittrex']) {
+                vars['vanilla_rates']['average'] = (vars['vanilla_rates']['poloniex'] + vars['vanilla_rates']['bittrex']) / 2;
+            } else {
+                vars['vanilla_rates']['average'] = vars['vanilla_rates']['poloniex'] + vars['vanilla_rates']['bittrex'];
+            }
+
+            /**
+             * Don't update client on first run
+             */
+            if (Object.keys(vars['exchange_rates']['rates']).length != 0) {
+                socket.emit('currency_info', [vars['settings']['local_currency'], vars['exchange_rates']['rates'][vars['settings']['local_currency']]['btc'], vars['vanilla_rates']['average']]);
+            }
+        }, 300);
+
+        setTimeout(update, 75000);
+    })();
+
+    setTimeout(function() {
+        /**
+         * Update received by address totals on initial client connection and repeat every 90 seconds
+         */
+        (function update() {
+            RPC_listreceivedbyaddress();
+            setTimeout(update, 90000);
+        })();
+
+        /**
+         * Update transaction history on initial client connection and repeat every 120 seconds
+         */
+        (function update() {
+            RPC_listsinceblock();
+            setTimeout(update, 120000);
+        })();
+    }, 300);
+
+    /**
+     * Update latest BTC prices on initial client connection and repeat every hour
+     */
+    (function update() {
+        request('https://www.bitstamp.net/api/ticker_hour/', function(error, response, body) {
+            if (error || !response) {
+                console.log('HTTPS www.bitstamp.net/api/ticker_hour/ ERROR\n\n', error);
+                return;
+            }
+
+            if (response['headers']['content-type'] == 'application/json') {
+                var body = JSON.parse(body);
+
+                if (body.hasOwnProperty('last')) {
+                    setTimeout(function() {
+                        /**
+                         * Update BTC price for current rates
+                         */
+                        for (var i in vars['exchange_rates']['rates']) {
+                            vars['exchange_rates']['rates'][i]['btc'] = vars['exchange_rates']['rates'][i]['rate'] * body['last'];
+                        }
+
+                        /**
+                         * Save updated exchange & vanilla rates to config
+                         */
+                        nconf.set('exchange_rates', vars['exchange_rates']);
+                        nconf.set('vanilla_rates', vars['vanilla_rates']);
+                        nconf.save(function(error) {
+                            if (error) {
+                                console.log(error['message']);
+                                return;
+                            }
+                        });
+                    }, 1000);
+                }
+            }
+        });
+
+        setTimeout(update, 3600000);
+    })();
 });
 
 /**
- * GET home page
+ * GET root page
  */
 router.get('/', function(req, res, next) {
     res.render('index', {title: 'Vanilla WebUI'});

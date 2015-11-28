@@ -1,7 +1,16 @@
 {
   "settings": {
-    "localcurrency": "EUR"
+    "local_currency": "EUR"
   },
-  "watchaddresses": [
-  ]
+  "vanilla_rates": {
+    "poloniex": 0,
+    "bittrex": 0,
+    "average": 0
+  },
+  "exchange_rates": {
+    "date": "",
+    "base": "",
+    "rates": {}
+  },
+  "watch_addresses": []
 }
