@@ -99,7 +99,7 @@ block content
                             /**
                              * Initial wallet "lock / unlock / encrypt" (passphrase) check
                              */
-                            socket.on('wallet_passphrase_check', function(res) {
+                            socket.on('wallet_status', function(res) {
                                 /**
                                  * error_code_wallet_wrong_enc_state = -15, wallet not encrypted
                                  */
@@ -122,7 +122,7 @@ block content
                                     /**
                                      * Disable input fields of forms that require the wallet to be unlocked
                                      */
-                                    $('#input_sweep_private_key').prop('disabled', true);
+                                    $('#input_import_private_key').prop('disabled', true);
                                     $('#input_dump_private_key').prop('disabled', true);
                                     $('#input_transfer_amount').prop('disabled', true);
                                     $('#input_transfer_recipient').prop('disabled', true);
@@ -140,7 +140,7 @@ block content
                                     /**
                                      * Enable input fields of forms that require the wallet to be unlocked
                                      */
-                                    $('#input_sweep_private_key').prop('disabled', false);
+                                    $('#input_import_private_key').prop('disabled', false);
                                     $('#input_dump_private_key').prop('disabled', false);
                                     $('#input_transfer_amount').prop('disabled', false);
                                     $('#input_transfer_recipient').prop('disabled', false);
@@ -202,7 +202,7 @@ block content
 
                     .span4.text-center
                         form.form-horizontal(id="form_convert_currency")
-                            input.span3(id="input_convert_amount", type="text", placeholder="Amount")
+                            input.span3(id="input_convert_amount", type="text", placeholder="Convert")
                             select.span2.form-control(id="select_converting_currency")
                                 option(value='VNL') VNL
                                 option(value='BTC') BTC
@@ -361,6 +361,15 @@ block content
                                         socket.emit('resend_vars', 'watch_addresses');
                                         socket.emit('resend_vars', 'listreceivedbyaddress');
                                         socket.emit('resend_vars', 'listsinceblock');
+
+                                        /**
+                                         * Hide conversion info on currency switch and clear input field
+                                         */
+                                        if (!$('#convert_currency').hasClass('hidden')) {
+                                            $("#convert_currency").toggleClass('hidden');
+                                        }
+
+                                        $('#input_convert_amount').val('');
                                     });
                                 });
 
@@ -431,12 +440,20 @@ block content
                         .span6
                             .row-fluid
                                 .span2
-                                    h4 TRANSACTIONS
+                                    input.btn(type='button', id='button_refresh', value='Refresh')
+                                    script.
+                                        /**
+                                         * Get latest watch addresses, addresses and transaction history
+                                         */
+                                        $('#button_refresh').click(function() {
+                                            socket.emit('refresh', true);
+                                        });
+
                                 .span10.text-right
                                     form.form-horizontal(id="form_transfer")
                                         input.span2(id="input_transfer_amount", type="text", placeholder="Amount")
-                                        input.span6(id="input_transfer_recipient", type="text", placeholder="A valid address")
-                                        input.btn(type="submit", id="button_transfer", value="Send")
+                                        input.span6(id="input_transfer_recipient", type="text", placeholder="Transfer coins to a valid address")
+                                        input.btn(type="submit", id="button_transfer", value="Transfer")
                                         input.btn.button_margin_left(type="button", id="button_transfer_add_recipient", value="+")
                                     script.
                                         /**
@@ -581,43 +598,8 @@ block content
                             .row-fluid #[span#table_complete_history]
                         .span6
                             .row-fluid
-                                div.span1
-                                    h4 ADDRESSES
-                                div.span11.text-right
-                                    form.form-horizontal(id="form_sweep_private_key")
-                                        input.span8(id="input_sweep_private_key", type="text", placeholder="Sweep a valid private key")
-                                        input.btn(type="submit", id="button_sweep_private_key", value="Sweep")
-                                        input.btn.button_margin_left(type='button', id='button_new_address', value='New')
-                                        script.
-                                            /**
-                                             * Disable the button until input is filled
-                                             */
-                                            $('#button_sweep_private_key').prop('disabled', true);
-                                            $('#input_sweep_private_key').keyup(function() {
-                                                $('#button_sweep_private_key').prop('disabled', this.value == "" ? true : false);     
-                                            });
-
-                                            $('#form_sweep_private_key').on('submit', function(e) {
-                                                e.preventDefault();
-
-                                               /**
-                                                * Disable the button again to prevent multiple submissions (it takes a few seconds to get a response from the wallet)
-                                                */
-                                                $('#button_sweep_private_key').prop('disabled', true);
-
-                                                /**
-                                                 * Enable the button after 6 seconds, this (should) give enough time for the wallet to respond
-                                                 */
-                                                setTimeout(function() {
-                                                     $('#button_sweep_private_key').prop('disabled', false);
-                                                }, 6000);
-
-                                                /**
-                                                 * Call RPC method importprivkey on the server
-                                                 */
-                                                socket.emit('importprivkey', $('#input_sweep_private_key').val());
-                                            });
-
+                                div.span3
+                                    input.btn(type='button', id='button_new_address', value='New receiving address')
                                     script.
                                         /**
                                          * On "button_new_address" click call RPC method getnewaddress on the server
@@ -626,6 +608,41 @@ block content
                                             socket.emit('getnewaddress', true);
                                         }); 
 
+                                div.span9.text-right
+                                    form.form-horizontal(id="form_import_private_key")
+                                        input.span10(id="input_import_private_key", type="text", placeholder="Import a valid private key")
+                                        input.btn(type="submit", id="button_import_private_key", value="Import")
+                                        script.
+                                            /**
+                                             * Disable the button until input is filled
+                                             */
+                                            $('#button_import_private_key').prop('disabled', true);
+                                            $('#input_import_private_key').keyup(function() {
+                                                $('#button_import_private_key').prop('disabled', this.value == "" ? true : false);     
+                                            });
+
+                                            $('#form_import_private_key').on('submit', function(e) {
+                                                e.preventDefault();
+
+                                               /**
+                                                * Disable the button again to prevent multiple submissions (it takes a few seconds to get a response from the wallet)
+                                                */
+                                                $('#button_import_private_key').prop('disabled', true);
+
+                                                /**
+                                                 * Enable the button after 6 seconds, this (should) give enough time for the wallet to respond
+                                                 */
+                                                setTimeout(function() {
+                                                     $('#button_import_private_key').prop('disabled', false);
+                                                }, 6000);
+
+                                                /**
+                                                 * Call RPC method importprivkey on the server
+                                                 */
+                                                socket.emit('importprivkey', $('#input_import_private_key').val());
+                                            });
+
+                                    script.
                                         /**
                                          * List all wallet addresses including empty ones
                                          */
@@ -650,50 +667,42 @@ block content
                                         });
 
                             .row-fluid #[span#table_wallet_addresses]
-                            .row-fluid
-                                .span3
-                                    h4 WATCH ADDRESSES
-                                .span9.text-right
-                                    form.form-horizontal(id="form_add_watch_address")
-                                        input.span2(id="input_watch_address_title", type="text", placeholder="Title")
-                                        input.span7(id="input_watch_address", type="text", placeholder="A valid address")
-                                        input.btn(type="submit", id="button_add_watch_address", value="Add")
-                                        input.btn.button_margin_left(type='button', id='button_refresh_watch_addresses', value='Refresh')
-                                        script.
-                                            /**
-                                             * Disable the button until inputs are filled
-                                             */
-                                            $('#button_add_watch_address').prop('disabled', true);
-                                            $('#form_add_watch_address input').keyup(function() {
-                                                var inputs_empty = false;
+                            .row-fluid.text-right
+                                form.form-horizontal(id="form_add_watch_address")
+                                    input.span2(id="input_watch_address_title", type="text", placeholder="Title")
+                                    input.span5(id="input_watch_address", type="text", placeholder="Watch a valid address")
+                                    input.btn(type="submit", id="button_add_watch_address", value="Add to watch list")
 
-                                                $('#form_add_watch_address input').each(function() {
-                                                    if ($(this).val().length == 0) {
-                                                        inputs_empty = true;
-                                                    }
-                                                });
+                                    script.
+                                        /**
+                                         * Disable the button until inputs are filled
+                                         */
+                                        $('#button_add_watch_address').prop('disabled', true);
+                                        $('#form_add_watch_address input').keyup(function() {
+                                            var inputs_empty = false;
 
-                                                if (inputs_empty) {
-                                                    $('#button_add_watch_address').prop('disabled', true);
-                                                } else {
-                                                    $('#button_add_watch_address').prop('disabled', false);
+                                            $('#form_add_watch_address input').each(function() {
+                                                if ($(this).val().length == 0) {
+                                                    inputs_empty = true;
                                                 }
                                             });
 
-                                            /**
-                                             * Emit new watch address
-                                             */
-                                            $('#form_add_watch_address').on('submit', function(e) {
-                                                e.preventDefault();
-                                                socket.emit('addwatchaddress', [$('#input_watch_address').val(), $('#input_watch_address_title').val()]);
-                                            });
+                                            if (inputs_empty) {
+                                                $('#button_add_watch_address').prop('disabled', true);
+                                            } else {
+                                                $('#button_add_watch_address').prop('disabled', false);
+                                            }
+                                        });
 
-                                            /**
-                                             * Refresh watch only addresses
-                                             */
-                                            $('#button_refresh_watch_addresses').click(function() {
-                                                socket.emit('refresh_watch_addresses', true);
-                                            });
+                                        /**
+                                         * Emit new watch address
+                                         */
+                                        $('#form_add_watch_address').on('submit', function(e) {
+                                            e.preventDefault();
+                                            socket.emit('addwatchaddress', [$('#input_watch_address').val(), $('#input_watch_address_title').val()]);
+                                        });
+
+
                             script.
                                 /**
                                  * List all watch addresses saved in config.json
@@ -712,36 +721,33 @@ block content
                                 });
 
                             .row-fluid #[span#table_watch_addresses]
-                            .row-fluid
-                                .span3
-                                    div #[span#qr_code]
-                                .span9.text-right
-                                    form.form-horizontal(id="form_create_qr_code")
-                                        input.span7(id="input_string_to_encode", type="text", placeholder="String to encode")
-                                        input.btn(id="button_create_qr_code", type="submit", value="Generate QR code")
-                            script.
-                                /**
-                                 * Disable the button until input is filled
-                                 */
-                                $('#button_create_qr_code').prop('disabled', true);
-                                $('#input_string_to_encode').keyup(function() {
-                                    $('#button_create_qr_code').prop('disabled', this.value == "" ? true : false);     
-                                });
+                            .row-fluid.text-center
+                                form.form-horizontal(id="form_create_qr_code")
+                                    input.span7(id="input_string_to_encode", type="text", placeholder="Generate QR code from a string")
+                                    input.btn(id="button_create_qr_code", type="submit", value="Generate")
+                                div #[span#qr_code]
+                                script.
+                                    /**
+                                     * Disable the button until input is filled
+                                     */
+                                    $('#button_create_qr_code').prop('disabled', true);
+                                    $('#input_string_to_encode').keyup(function() {
+                                        $('#button_create_qr_code').prop('disabled', this.value == "" ? true : false);     
+                                    });
 
-                                /**
-                                 * Emit string used in qr code
-                                 */
-                                $('#form_create_qr_code').on('submit', function(e) {
-                                    e.preventDefault();
-                                    socket.emit('qr_code_generate', $('#input_string_to_encode').val());
-                                });
+                                    /**
+                                     * Emit string used in qr code
+                                     */
+                                    $('#form_create_qr_code').on('submit', function(e) {
+                                        e.preventDefault();
 
-                                /**
-                                 * Update with new qr code <img /> tag
-                                 */
-                                socket.on('qr_code_return', function(obj) {
-                                    $('#qr_code').empty().append(obj);
-                                });
+                                        $('#qr_code').empty();
+                                        $('#qr_code').qrcode({
+                                            "size": 150,
+                                            "text": $('#input_string_to_encode').val()
+                                        });
+                                    });
+
 
                     .row-fluid
                         .span6
@@ -750,7 +756,7 @@ block content
                                 /**
                                  * List last 200 trades from Poloniex
                                  */
-                                socket.on('poloniex_latest_trades', function(obj) {
+                                socket.on('trades_poloniex', function(obj) {
                                     $('#table_trade_history_poloniex').empty();
 
                                     var html_table = $('<table class="table table-striped"><thead><tr><th>Date</th><th>Type</th><th>Price</th><th>VNL</th><th>BTC</th></tr></thead></table>');
@@ -769,7 +775,7 @@ block content
                                 /**
                                  * List last 50 trades from Bittrex
                                  */
-                                socket.on('bittrex_latest_trades', function(obj) {
+                                socket.on('trades_bittrex', function(obj) {
                                     $('#table_trade_history_bittrex').empty();
                                     var html_table = $('<table class="table table-striped"><thead><tr><th>Date</th><th>Type</th><th>Price</th><th>VNL</th><th>BTC</th></tr></thead></table>');
 
@@ -795,12 +801,8 @@ block content
                                          */
                                         $('#button_backup_wallet').click(function() {
                                             socket.emit('backupwallet', true);
-                                            socket.on('backupwallet_done', function() {
-                                                $('#backup_wallet_response').text('Wallet has been successfuly backed up in your vanillacoind directory.');
-                                            });
                                         });
 
-                            .row-fluid #[span#backup_wallet_response]
                             .row-fluid
                                 .span9
                                     h4 Check wallet for inconsistencies
@@ -812,7 +814,7 @@ block content
                                          */
                                         $('#button_check_wallet').click(function() {
                                             socket.emit('checkwallet', true);
-                                            socket.on('checkwallet_done', function(obj) {
+                                            socket.on('checkwallet_response', function(obj) {
                                                 $('#check_wallet_response').empty();
 
                                                 for (var key in obj) {
@@ -833,7 +835,7 @@ block content
                                          */
                                         $('#button_repair_wallet').click(function() {
                                             socket.emit('repairwallet', true);
-                                            socket.on('repairwallet_done', function(obj) {
+                                            socket.on('repairwallet_response', function(obj) {
                                                 $('#repair_wallet_response').empty();
 
                                                 for (var key in obj) {
@@ -982,7 +984,7 @@ block content
                                                     /**
                                                      * Update text with % and incentive reward (in coins)
                                                      */
-                                                    socket.on('incentive_reward_return', function(obj) {
+                                                    socket.on('incentive_reward_response', function(obj) {
                                                         $('#future_block_percentage').text(obj + '%');
                                                         $('#incentive_reward').text(((subsidy / 100) * obj).toFixed(6));
                                                     });
@@ -1112,7 +1114,11 @@ block content
                                     if (Object.keys(controls_selected).length == 0) {
                                         marker_groups[i].addTo(peers_map);
                                     } else {
-                                        if (controls_selected[i]) {
+                                        if (controls_selected.hasOwnProperty(i)) {
+                                            if (controls_selected[i]) {
+                                                marker_groups[i].addTo(peers_map);
+                                            }
+                                        } else {
                                             marker_groups[i].addTo(peers_map);
                                         }
                                     }

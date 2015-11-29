@@ -60,8 +60,7 @@ io.on('connection', function(socket) {
         'wallet_info':{'udp_connections':0},
         'listreceivedbyaddress':[],
         'listsinceblock':[],
-        'incentive_rewards':[{'block_number':257600, 'reward_percent':15},
-                             {'block_number':263600, 'reward_percent':16},
+        'incentive_rewards':[{'block_number':263600, 'reward_percent':16},
                              {'block_number':270000, 'reward_percent':17},
                              {'block_number':276900, 'reward_percent':18},
                              {'block_number':284200, 'reward_percent':19},
@@ -86,94 +85,21 @@ io.on('connection', function(socket) {
     }
 
     /**
-     * Resend requested property of vars
-     */
-    socket.on('resend_vars', function(key) {
-        if (vars.hasOwnProperty(key)) {
-            socket.emit(key, vars[key]);
-        }
-    });
-
-    /**
-     * Update client with exchange and vanilla rates
+     * Update client with available currencies (for local currency select)
      */
     socket.emit('exchange_rates', vars['exchange_rates']['rates']);
 
     /**
-     * Update config and client with provided local currency
-     */
-    socket.on('currency_change', function(currency) {
-        vars['settings']['local_currency'] = currency;
-
-        nconf.set('settings:local_currency', vars['settings']['local_currency']);
-        nconf.save(function(error) {
-            if (error) {
-                console.log(error['message']);
-                return;
-            }
-        });
-
-        socket.emit('currency_info', [vars['settings']['local_currency'], vars['exchange_rates']['rates'][vars['settings']['local_currency']]['btc'], vars['vanilla_rates']['average']]);
-    });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    /**
-     * Generate and emit QR code
-     */
-    socket.on('qr_code_generate', function(obj) {
-        var qr = require('qrcode-npm').qrcode(4, 'M');
-            qr.addData(obj);
-            qr.make();
-
-        socket.emit('qr_code_return', qr.createImgTag(4));
-    });
-
-    /**
-     * Refresh watch address list
-     */
-    socket.on('refresh_watch_addresses', function() {
-        HTTPS_getwatchaddresses();
-    });
-
-
-
-    /**
      * Encrypt wallet
      */
-    socket.on('encryptwallet', function(encryptionkey) {
-        client.call({"jsonrpc": "2.0", "method": "encryptwallet", "params": [encryptionkey], "id": 0}, function(err, res) {
-            if (err) { console.log(err); }
-
-            if (res['result']) {
-                socket.emit('alerts', 'Wallet encrypted successfuly. Restart the process.');
+    socket.on('encryptwallet', function(key) {
+        client.call({'jsonrpc':'2.0', 'method':'encryptwallet', 'params':[key], 'id':0}, function(error, response) {
+            if (error || !response) {
+                console.log('RPC encryptwallet ERROR\n\n', error);
+                return;
             }
+
+            socket.emit('alerts', 'Wallet encrypted successfuly. Restart Vanilla wallet.');
         });
     });
 
@@ -181,17 +107,15 @@ io.on('connection', function(socket) {
      * Unlock wallet
      */
     socket.on('walletpassphrase', function(walletpassphrase) {
-        client.call({"jsonrpc": "2.0", "method": "walletpassphrase", "params": [walletpassphrase], "id": 0}, function(err, res) {
-            if (err) { console.log(err); }
-
-            /**
-             * Update the locking / unlocking form
-             */
-            if (res.hasOwnProperty('result')) {
-                RPC_walletpassphrase();
+        client.call({'jsonrpc':'2.0', 'method':'walletpassphrase', 'params':[walletpassphrase], 'id':0}, function(error, response) {
+            if (error || !response) {
+                console.log('RPC walletpassphrase (unlock) ERROR\n\n', error);
+                return;
             }
 
-            if (res.hasOwnProperty('error')) {
+            if (response.hasOwnProperty('result')) {
+                RPC_walletpassphrase();
+            } else {
                 socket.emit('alerts', "The passphrase you've entered is incorrect.");                
             }
         });
@@ -200,107 +124,256 @@ io.on('connection', function(socket) {
     /**
      * Lock wallet
      */
-    socket.on('walletlock', function(obj) {
-        client.call({"jsonrpc": "2.0", "method": "walletlock", "params": [], "id": 0}, function(err, res) {
-            if (err) { console.log(err); }
+    socket.on('walletlock', function() {
+        client.call({'jsonrpc':'2.0', 'method':'walletlock', 'params':[], 'id':0}, function(error, response) {
+            if (error || !response) {
+                console.log('RPC walletlock ERROR\n\n', error);
+                return;
+            }
 
-            /**
-             * Update the locking / unlocking form
-             */
             RPC_walletpassphrase();
         });
     });
 
     /**
-     * Generate a new wallet address
+     * Update client and config with provided currency
      */
-    socket.on('getnewaddress', function(obj) {
-        client.call({"jsonrpc": "2.0", "method": "getnewaddress", "params": [], "id": 0}, function(err, res) {
-            if (err) { console.log(err); }
+    socket.on('currency_change', function(currency) {
+        vars['settings']['local_currency'] = currency;
+        socket.emit('currency_info', [vars['settings']['local_currency'], vars['exchange_rates']['rates'][vars['settings']['local_currency']]['btc'], vars['vanilla_rates']['average']]);
 
-            /**
-             * Update wallet address list
-             */
+        nconf.set('settings:local_currency', vars['settings']['local_currency']);
+        nconf.save(function(error) {
+            if (error) {
+                console.log('NCONF settings:local_currency ERROR\n\n', error['message']);
+                return;
+            }
+        });
+    });
+
+    /**
+     * Resend requested property of vars
+     */
+    socket.on('resend_vars', function(property) {
+        if (vars.hasOwnProperty(property)) {
+            socket.emit(property, vars[property]);
+        }
+    });
+
+    /**
+     * Refresh responses
+     */
+    socket.on('refresh', function() {
+        HTTPS_getwatchaddresses();
+        RPC_listreceivedbyaddress();
+        RPC_listsinceblock();
+    });
+
+    /**
+     *
+
+     *
+     * Transfering goes here
+     *
+
+     *
+     */
+
+    /**
+     * Get new receiving address
+     */
+    socket.on('getnewaddress', function() {
+        client.call({'jsonrpc':'2.0', 'method':'getnewaddress', 'params':[], 'id':0}, function(error, response) {
+            if (error || !response) {
+                console.log('RPC getnewaddress ERROR\n\n', error);
+                return;
+            }
+
             RPC_listreceivedbyaddress();
         });
     });
 
     /**
-     * Sweep private key
+     * Import a valid private key
      */
-    socket.on('importprivkey', function(privatekey) {
-        client.call({"jsonrpc": "2.0", "method": "importprivkey", "params": [privatekey], "id": 0}, function(err, res) {
-            if (err) { console.log(err); }
+    socket.on('importprivkey', function(key) {
+        client.call({'jsonrpc':'2.0', 'method':'importprivkey', 'params':[key], 'id':0}, function(error, response) {
+            if (error || !response) {
+                console.log('RPC importprivkey ERROR\n\n', error);
+                return;
+            }
 
-            if (res.error) {
-                if (res.error['code'] == -5) {
-                    socket.emit('alerts', "The private key you've entered is invalid.");
-                } else if (res.error['code'] == -4) {
-                    socket.emit('alerts', "The private key you've entered is already in your wallet or your wallet is locked.");
+            if (response.hasOwnProperty('error')) {
+                if (response['error']['code'] == -4) {
+                    socket.emit('alerts', "The private key you're trying to import is already in your wallet.");
+                }
+
+                if (response['error']['code'] == -5) {
+                    socket.emit('alerts', "The private key you're trying to import is invalid.");
                 }
             } else {
-                socket.emit('alerts', "Private key added successfully.");
-
-                /**
-                 * Update wallet address list
-                 */
+                socket.emit('alerts', 'Private key successfully imported.');
                 RPC_listreceivedbyaddress();
             }
         });
     });
 
     /**
-     * Add new watch address object to config.json
+     *
+
+     *
+     * Add watch address goes here
+     *
+
+     *
      */
-    socket.on('addwatchaddress', function(array) {
-        var address = array[0];
-        var title = array[1];
 
-        client.call({"jsonrpc": "2.0", "method": "validateaddress", "params": [address], "id": 0}, function(err, res) {
-            if (err) { console.log(err); }
-
-            var already_added = false;
-            var configaddresses = nconf.get('watch_addresses');
-
-            /**
-             * Check if the address is already saved
-             */
-            for (var key in configaddresses) {
-                if (configaddresses[key]['address'] == address) {
-                    already_added = true;
-                    break;
-                }
+    /**
+     * Retrieve incentive reward % based on provided block number
+     */
+    socket.on('incentive_reward', function(block_number) {
+        for (var i in vars['incentive_rewards']) {
+            if (block_number < vars['incentive_rewards'][i]['block_number']) {
+                socket.emit('incentive_reward_response', vars['incentive_rewards'][i]['reward_percent'] - 1);
+                break;
             }
 
-            if (res.result['isvalid'] && !res.result['ismine'] && !already_added) {
-                configaddresses.push({"address":address, "title":title});
+            if (i == vars['incentive_rewards'].length - 1) {
+                socket.emit('incentive_reward_response', vars['incentive_rewards'][i]['reward_percent']);
+            }
+        }
+    });
 
-                nconf.set('watch_addresses', configaddresses);
-                nconf.save(function(err) {
-                    if (err) {
-                        console.error(err.message);
-                        return;
-                    }
-                });
+    /**
+     * Backup wallet
+     */
+    socket.on('backupwallet', function() {
+        client.call({'jsonrpc':'2.0', 'method':'backupwallet', 'params':[""], 'id':0}, function(error, response) {
+            if (error || !response) {
+                console.log('RPC backupwallet ERROR\n\n', error);
+                return;
+            }
 
-                /**
-                 * Add new watch address object to watchaddresses array
-                 */
-                vars['watch_addresses'].push({"address":address, "title":title});
-
-                /**
-                 * Update watch address list
-                 */
-                HTTPS_getwatchaddresses();
-            } else if (res.result['ismine']) {
-                socket.emit('alerts', "The watch only address you've entered is already in your wallet.");
-            } else if (already_added) {
-                socket.emit('alerts', "The watch only address you've entered is already on the list.");
+            if (response.hasOwnProperty('error')) {
+                if (response['error']['code'] == -4) {
+                    socket.emit('alerts', 'Backup failed.');
+                }
             } else {
-                socket.emit('alerts', "The watch only address you've entered is not a valid address.");
+                socket.emit('alerts', 'Wallet successfuly backed up in your vanillacoind directory.');
             }
         });
     });
+
+    /**
+     * Check wallet
+     */
+    socket.on('checkwallet', function() {
+        client.call({'jsonrpc':'2.0', 'method':'checkwallet', 'params':[], 'id':0}, function(error, response) {
+            if (error || !response) {
+                console.log('RPC checkwallet ERROR\n\n', error);
+                return;
+            }
+
+            socket.emit('checkwallet_response', response['result']);
+        });
+    });
+
+    /**
+     * Repair wallet
+     */
+    socket.on('repairwallet', function() {
+        client.call({'jsonrpc':'2.0', 'method':'repairwallet', 'params':[], 'id':0}, function(error, response) {
+            if (error || !response) {
+                console.log('RPC repairwallet ERROR\n\n', error);
+                return;
+            }
+
+            socket.emit('repairwallet_response', response['result']);
+        });
+    });
+
+
+
+
+
+
+
+
+
+
+
+    /**
+     * Passphrase change
+     */
+    socket.on('walletpassphrasechange', function(obj) {
+        var old_password = obj[0];
+        var new_password = obj[1];
+
+        client.call({"jsonrpc": "2.0", "method": "walletpassphrasechange", "params": [old_password, new_password], "id": 0}, function(err, res) {
+            if (err) { console.log(err); }
+            if (res.error) {
+                /**
+                 * error_code_wallet_passphrase_incorrect, -14
+                 */
+                if (res.error['code'] == -14) {
+                    socket.emit('alerts', "You've entered an incorrect current passphrase.");
+                }
+                /**
+                 * error_code_wallet_wrong_enc_state, -15
+                 */
+                else if (res.error['code'] == -15) {
+                    socket.emit('alerts', "Wallet is not encrypted.");
+                } else {
+                    console.log(res.error);
+                }
+            } else {
+                socket.emit('alerts', 'Password changed successfuly.');
+            }
+        });
+    });
+
+    /**
+     * Dump private key
+     */
+    socket.on('dumpprivkey', function(public_key) {
+        client.call({"jsonrpc": "2.0", "method": "dumpprivkey", "params": [public_key], "id": 0}, function(err, res) {
+            if (err) { console.log(err); }
+            if (res.error) {
+                /**
+                 * error_code_wallet_error, -4
+                 */
+                if (res.error['code'] == -4) {
+                    socket.emit('alerts', "The address you've entered does not belong to this wallet.");
+                }
+                /**
+                 * error_code_invalid_address_or_key, -5
+                 */
+                else if (res.error['code'] == -5) {
+                    socket.emit('alerts', "The address you've entered is invalid.");
+                } else {
+                    console.log(res.error);
+                }
+            } else {
+                socket.emit('alerts', 'Dumped private key: ' + res.result);
+            }
+        });
+    });
+
+    /**
+     * Dump wallet, dumps wallet.csv into .Vanillacoin/data dir, empty file if wallet is locked
+     *
+    socket.on('dumpwallet', function() {
+    });
+    */
+
+
+
+
+
+
+
+
+
 
     /**
      * Check if the address is valid before transfering coins
@@ -369,135 +442,57 @@ io.on('connection', function(socket) {
     });
 
     /**
-     * Calculate and emit incentive reward % based on provided block number
+     * Add new watch address object to config.json
      */
-    socket.on('incentive_reward', function(block_number) {
-        for (var i in vars['incentive_rewards']) {
-            if (block_number < parseInt(vars['incentive_rewards'][i]['block_number'])) {
-                socket.emit('incentive_reward_return', parseInt(vars['incentive_rewards'][i]['reward_percent']) - 1);
-                break;
-            }
+    socket.on('addwatchaddress', function(array) {
+        var address = array[0];
+        var title = array[1];
 
-            if (parseInt(i) == vars['incentive_rewards'].length - 1) {
-                socket.emit('incentive_reward_return', parseInt(vars['incentive_rewards'][i]['reward_percent']));
-            }
-        }
-    });
-
-    /**
-     * RPC method 'backupwallet'
-     */
-    socket.on('backupwallet', function() {
-        client.call({"jsonrpc": "2.0", "method": "backupwallet", "params": [""], "id": 0}, function(err, res) {
+        client.call({"jsonrpc": "2.0", "method": "validateaddress", "params": [address], "id": 0}, function(err, res) {
             if (err) { console.log(err); }
-            if (res.error) {
-                /**
-                 * error_code_wallet_error, -4
-                 */
-                if (res.error['code'] == -4) {
-                    socket.emit('alerts', "Backup failed.");
-                } else {
-                    console.log(res.error);
+
+            var already_added = false;
+            var configaddresses = nconf.get('watch_addresses');
+
+            /**
+             * Check if the address is already saved
+             */
+            for (var key in configaddresses) {
+                if (configaddresses[key]['address'] == address) {
+                    already_added = true;
+                    break;
                 }
+            }
+
+            if (res.result['isvalid'] && !res.result['ismine'] && !already_added) {
+                configaddresses.push({"address":address, "title":title});
+
+                nconf.set('watch_addresses', configaddresses);
+                nconf.save(function(err) {
+                    if (err) {
+                        console.error(err.message);
+                        return;
+                    }
+                });
+
+                /**
+                 * Add new watch address object to watchaddresses array
+                 */
+                vars['watch_addresses'].push({"address":address, "title":title});
+
+                /**
+                 * Update watch address list
+                 */
+                HTTPS_getwatchaddresses();
+            } else if (res.result['ismine']) {
+                socket.emit('alerts', "The watch only address you've entered is already in your wallet.");
+            } else if (already_added) {
+                socket.emit('alerts', "The watch only address you've entered is already on the list.");
             } else {
-                socket.emit('backupwallet_done', true);
+                socket.emit('alerts', "The watch only address you've entered is not a valid address.");
             }
         });
     });
-
-    /**
-     * RPC method 'checkwallet'
-     */
-    socket.on('checkwallet', function() {
-        client.call({"jsonrpc": "2.0", "method": "checkwallet", "params": [], "id": 0}, function(err, res) {
-            if (err) { console.log(err); }
-            socket.emit('checkwallet_done', res.result);
-        });
-    });
-
-    /**
-     * RPC method 'repairwallet'
-     */
-    socket.on('repairwallet', function() {
-        client.call({"jsonrpc": "2.0", "method": "repairwallet", "params": [], "id": 0}, function(err, res) {
-            if (err) { console.log(err); }
-            socket.emit('repairwallet_done', res.result);
-        });
-    });
-
-    /**
-     * Dump private key for the provided public key
-     */
-    socket.on('dumpprivkey', function(public_key) {
-        client.call({"jsonrpc": "2.0", "method": "dumpprivkey", "params": [public_key], "id": 0}, function(err, res) {
-            if (err) { console.log(err); }
-            if (res.error) {
-                /**
-                 * error_code_wallet_error, -4
-                 */
-                if (res.error['code'] == -4) {
-                    socket.emit('alerts', "The address you've entered does not belong to this wallet.");
-                }
-                /**
-                 * error_code_invalid_address_or_key, -5
-                 */
-                else if (res.error['code'] == -5) {
-                    socket.emit('alerts', "The address you've entered is invalid.");
-                } else {
-                    console.log(res.error);
-                }
-            } else {
-                socket.emit('alerts', 'Dumped private key: ' + res.result);
-            }
-        });
-    });
-
-    /**
-     * Change wallet password to provided password
-     */
-    socket.on('walletpassphrasechange', function(obj) {
-        var old_password = obj[0];
-        var new_password = obj[1];
-
-        client.call({"jsonrpc": "2.0", "method": "walletpassphrasechange", "params": [old_password, new_password], "id": 0}, function(err, res) {
-            if (err) { console.log(err); }
-            if (res.error) {
-                /**
-                 * error_code_wallet_passphrase_incorrect, -14
-                 */
-                if (res.error['code'] == -14) {
-                    socket.emit('alerts', "You've entered an incorrect current passphrase.");
-                }
-                /**
-                 * error_code_wallet_wrong_enc_state, -15
-                 */
-                else if (res.error['code'] == -15) {
-                    socket.emit('alerts', "Wallet is not encrypted.");
-                } else {
-                    console.log(res.error);
-                }
-            } else {
-                socket.emit('alerts', 'Password changed successfuly.');
-            }
-        });
-    });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -590,50 +585,6 @@ io.on('connection', function(socket) {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-    /**
-     * RPC method 'walletpassphrase' without params. Returns error codes needed on client
-     */
-    function RPC_walletpassphrase() {
-        client.call({"jsonrpc": "2.0", "method": "walletpassphrase", "params": [], "id": 0}, function(err, res) {
-            if (err) { console.log(err); }
-            socket.emit('wallet_passphrase_check', res.error);
-        });
-    }
-
-    /**
-     * Check wallet state (locked, unlocked, unencrypted) when a client connects
-     */
-    RPC_walletpassphrase();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     /**
      * Get lon, lat & country for provided IP and update nodes_geodata
      */
@@ -674,23 +625,22 @@ io.on('connection', function(socket) {
 
 
 
+    /**
+     * RPC method 'walletpassphrase'
+     * Used on client to update wallet state using provided error code (locked / unlocked / unencrypted)
+     */
+    RPC_walletpassphrase();
 
+    function RPC_walletpassphrase() {
+        client.call({'jsonrpc':'2.0', 'method':'walletpassphrase', 'params':[], 'id':0}, function(error, response) {
+            if (error || !response) {
+                console.log('RPC walletpassphrase (state check) ERROR\n\n', error);
+                return;
+            }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+            socket.emit('wallet_status', response['error']);
+        });
+    }
 
     /**
      * RPC method 'listreceivedbyaddress'
@@ -698,7 +648,7 @@ io.on('connection', function(socket) {
     function RPC_listreceivedbyaddress() {
         client.call({'jsonrpc':'2.0', 'method':'listreceivedbyaddress', 'params':{'minconf':1, 'includeempty':true}, 'id':0}, function(error, response) {
             if (error || !response) {
-                console.log('RPC listsinceblock ERROR\n\n', error);
+                console.log('RPC listreceivedbyaddress ERROR\n\n', error);
                 return;
             }
 
@@ -739,7 +689,7 @@ io.on('connection', function(socket) {
                     /**
                      * Check if response is newer than the one in config
                      */
-                    if (body['date'] != nconf.get('exchange_rates:date')) {
+                    if (body['date'] != vars['exchange_rates']['date']) {
                         vars['exchange_rates']['date'] = body['date'];
                         vars['exchange_rates']['base'] = body['base'];
 
@@ -877,7 +827,7 @@ io.on('connection', function(socket) {
 
                 if (body) {
                     vars['vanilla_rates']['poloniex'] = parseFloat(body[0]['rate']);
-                    socket.emit('poloniex_latest_trades', body);
+                    socket.emit('trades_poloniex', body);
                 }
             }
         });
@@ -893,7 +843,7 @@ io.on('connection', function(socket) {
 
                 if (body) {
                     vars['vanilla_rates']['bittrex'] = parseFloat(body['result'][0]['Price']);
-                    socket.emit('bittrex_latest_trades', body['result']);
+                    socket.emit('trades_bittrex', body['result']);
                 }
             }
         });
@@ -966,7 +916,7 @@ io.on('connection', function(socket) {
                         nconf.set('vanilla_rates', vars['vanilla_rates']);
                         nconf.save(function(error) {
                             if (error) {
-                                console.log(error['message']);
+                                console.log('NCONF exchange_rates && vanilla_rates ERROR\n\n', error['message']);
                                 return;
                             }
                         });
