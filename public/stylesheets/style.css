@@ -7,9 +7,31 @@ html {
 }
 body {
     background:#fdfcf8;
-  /* Margin bottom by footer height */
-  margin-bottom: 40px;
+    /* Margin bottom by footer height */
+    margin-bottom: 40px;
 }
+
+.navbar-qrcode, .navbar-passphrase {
+    min-width:550px;
+    padding-left:10px;
+    padding-right:10px;
+}
+.navbar-transfer {
+    min-width:700px;
+    padding-left:10px;
+    padding-right:10px;
+}
+.navbar-convert {
+    min-width:300px;
+    padding-left:10px;
+    padding-right:10px;
+}
+
+
+a, a:visited, a:hover, a:active {
+    color: #9b775d !important;
+}
+
 .footer {
   position: absolute;
   bottom: 0;
@@ -21,18 +43,10 @@ body {
 .footer p {
     padding-top:10px;
 }
-
-
-
-
 h3 {
-    font-size:21px;
+    font-size:19px;
     margin-top:10px;
     margin-bottom:10px;
-}
-.tradehistory {
-    height:270px;
-    overflow-y:scroll;
 }
 .Sell {
     color:red;
@@ -43,6 +57,9 @@ h3 {
 .table {
     margin-top:8px;
     margin-bottom:8px;
+}
+.leaflet-control-layers {
+    background:#fdfcf8;
 }
 
 .table > thead > tr > th,
@@ -58,15 +75,41 @@ h3 {
     float: none;
     margin: 0 auto;
 }
-.row {
-    margin-bottom:5px;
+.navbar-brand img {
+    margin-top:-6px;
 }
-hr {
-    margin-top:6px;
-    margin-bottom:6px;
+.navbar-header {
+    width:35px;
 }
-input[type=text]{
+.navbar {
+    margin:0px;
+}
+.red a,
+.red a:visited,
+.red a:hover,
+.red a:active {
+    color:red !important;
+}
+.navbar {
+    margin-bottom:15px;
+}
+
+.m-tb-10 {
+    margin-top:10px;
+    margin-bottom:10px;
+}
+.m-t-10 {
+    margin-top:10px;
+}
+
+input[type=text], input[type=password] {
     margin-top:3px;
+}
+#filter_transactions {
+    margin-top:12px;
+}
+.dataTables_filter {
+   display: none;
 }
 select {
     margin-top:3px;
@@ -90,9 +133,8 @@ select {
     margin-left:5px;
     margin-right:5px;
 }
-
-#peers_header {
-    line-height:40px;
+.lh-33 {
+    line-height:33px;
 }
 #blocktime_estimation {
     line-height:35px;
@@ -102,8 +144,10 @@ select {
     padding-top:4px;
 }
 #map {
-    margin-top:-10px;
-    height:500px;
+    height:550px;
+}
+blockquote {
+    font-size:14px;
 }
 
 /**

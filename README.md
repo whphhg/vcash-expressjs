@@ -15,14 +15,18 @@ Usage
 npm start
 ```
 
-**Wallet**
-![Alt](http://i.imgur.com/1SvWuJo.jpg)
+**Main**
+![Alt](http://i.imgur.com/20NBIUq.png)
 
-**Incentive info**
-![Alt](http://i.imgur.com/3TgWi6B.jpg)
+**Node incentives**
+![Alt](http://i.imgur.com/YXoOAzX.png)
+![Alt](http://i.imgur.com/Eudv5q1.png)
+
+**Network**
+![Alt](http://i.imgur.com/9Xy0JTs.jpg)
 
 **Maintenance**
-![Alt](http://i.imgur.com/5L7eWFF.jpg)
+![Alt](http://i.imgur.com/MuMEZLL.png)
 
 Donations welcome at
 ```
