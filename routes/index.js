@@ -885,7 +885,7 @@ io.on('connection', function(socket) {
             if (response['headers']['content-type'] == 'application/json; charset=utf-8') {
                 var body = JSON.parse(body);
 
-                if (body.length > 1) {
+                if (body['result'].length > 1) {
                     cache['vanilla_rates']['bittrex'] = parseFloat(body['result'][0]['Price']);
                     socket.emit('trades_bittrex', body['result']);
                 }

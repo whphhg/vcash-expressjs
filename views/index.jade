@@ -86,6 +86,15 @@ block content
 
                 views['view-main']['visible'] = true;
                 $('#view-main').removeClass('hidden');
+
+                /**
+                 * Redraw the tables
+                 */
+                txs_table.columns.adjust();
+                addresses_table.columns.adjust();
+                watchlist_table.columns.adjust();
+                poloniex_table.columns.adjust();
+                bittrex_table.columns.adjust();
                 // hide all, show main
             } else {
                 for (var i in views) {
@@ -260,8 +269,8 @@ block content
                                         });
 
                                 li.dropdown
-                                    a.dropdown-toggle(href="#", data-toggle='dropdown') Transfer &nbsp;
-                                        span.glyphicon.glyphicon-share(aria-hidden='true')
+                                    a.dropdown-toggle(href="#", data-toggle='dropdown')
+                                        span.glyphicon.glyphicon-send(aria-hidden='true')
                                     ul.dropdown-menu
                                         li
                                             .navbar-transfer
@@ -317,24 +326,14 @@ block content
                                                         });
 
                                 li#view-node-incentives-li
-                                    a(href="#") Node incentives &nbsp;
-                                        span.glyphicon.glyphicon-asterisk(aria-hidden='true')
+                                    a(href="#")
+                                        span.glyphicon.glyphicon-stats(aria-hidden='true')
                                     script.
                                         /**
                                          * Switch to node incentives view
                                          */
                                         $('li#view-node-incentives-li').click(function() {
                                             set_view('view-node-incentives');
-
-                                            /**
-                                             * Redraw the tables
-                                             */
-                                            peers_table.columns.adjust();
-                                            txs_table.columns.adjust();
-                                            addresses_table.columns.adjust();
-                                            watchlist_table.columns.adjust();
-                                            poloniex_table.columns.adjust();
-                                            bittrex_table.columns.adjust();
                                         });
 
                                 p.navbar-text
@@ -344,7 +343,6 @@ block content
                                     b #[span#stake]
                                     | &nbsp;&nbsp; Immature &nbsp;&nbsp;
                                     b #[span#newmint]
-
                             ul.nav.navbar-nav.navbar-right
                                 li.dropdown
                                     a.dropdown-toggle(href="#", data-toggle='dropdown')
@@ -360,7 +358,6 @@ block content
                                                             option(value='VNL') VNL
                                                             option(value='BTC') BTC
                                                             option(value='LOCAL') LOCAL
-
                                                 .row
                                                     .col-md-12
                                                         #convert_currency.hidden.m-t-10
@@ -510,32 +507,17 @@ block content
                                              * Redraw the tables
                                              */
                                             peers_table.columns.adjust();
-                                            txs_table.columns.adjust();
-                                            addresses_table.columns.adjust();
-                                            watchlist_table.columns.adjust();
-                                            poloniex_table.columns.adjust();
-                                            bittrex_table.columns.adjust();
                                         });
 
                                 li#view-maintenance-li
                                     a(href="#")
-                                        span.glyphicon.glyphicon-cog(aria-hidden='true')
+                                        span.glyphicon.glyphicon-wrench(aria-hidden='true')
                                     script.
                                         /**
                                          * Switch to maintenance view
                                          */
                                         $('li#view-maintenance-li').click(function() {
                                             set_view('view-maintenance');
-
-                                            /**
-                                             * Redraw the tables
-                                             */
-                                            peers_table.columns.adjust();
-                                            txs_table.columns.adjust();
-                                            addresses_table.columns.adjust();
-                                            watchlist_table.columns.adjust();
-                                            poloniex_table.columns.adjust();
-                                            bittrex_table.columns.adjust();
                                         });
 
                                 li.dropdown#lockicon
@@ -1138,7 +1120,7 @@ block content
                     #view-node-incentives-about.hidden
                         .col-md-12
                             br
-                            p The node incentives system donates a portion of the miners coinbase reward to peers that are helping to maintain the network infrastructure. The system is constantly probing for good publicly addressable peers. These peers are voted on using a deterministic scoring system that is secured by the blockchain. Additionally there is a collateral mechanism that (if enabled) can prohibit votes from peers that do not have at least N amount of coins (in a single deposit) in their default wallet address. The only requirements for participating in the incentive system are a possible collateral deposit and a publically addressable peer.
+                            p The node incentives system donates a portion of the miners coinbase reward to peers that are helping to maintain the network infrastructure. The system is constantly probing for good publicly addressable peers. These peers are voted on using a deterministic scoring system that is secured by the blockchain. Additionally there is a collateral mechanism that can prohibit votes from peers that do not have at least N amount of coins (in a single deposit) in their default wallet address. The only requirements for participating in the incentive system are a possible collateral deposit and a publically addressable peer.
                             p
                                 b Q: 
                                 | How do I know if my client is a candidate for incentive rewards?

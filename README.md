@@ -1,5 +1,5 @@
 # A clean (unofficial) Node.js WebUI for the Vanilla wallet.
-Works on Linux, Windows and MacOS.
+Works on Linux, Windows and Macintosh.
 
 **Warning**: Please backup your existing wallet files (~/.Vanillacoin/data/) folder. I take no responsibilty if you break something.
 
