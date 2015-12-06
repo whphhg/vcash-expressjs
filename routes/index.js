@@ -403,6 +403,63 @@ io.on('connection', function(socket) {
     });
 
     /**
+     * Dump transaction history to a .csv file
+     */
+    socket.on('dumptxhistory', function() {
+        /**
+         * Use createWriteStream in case of large tx history
+         */
+        var tx_history_csv = require('fs').createWriteStream('transaction_history.csv');
+
+        tx_history_csv.on('error', function(error) {
+            console.log('CSV dumptxhistory ERROR\n\n', error);
+            return;
+        });
+
+        /**
+         * Write column names
+         */
+        tx_history_csv.write('address, category, amount, confirmations, blockhash, blockindex, blocktime, txid, time, timereceived\n');
+
+        /**
+         * Write rows
+         */
+        for (var i in cache['listsinceblock']) {
+            /**
+             * Convert ['blocktime'] to miliseconds
+             */
+            var blocktime = new Date(cache['listsinceblock'][i]['blocktime'] * 1000);
+                blocktime = blocktime.toLocaleDateString() + ' ' + blocktime.toLocaleTimeString();
+
+            /**
+             * Convert ['time'] to miliseconds
+             */
+            var time = new Date(cache['listsinceblock'][i]['time'] * 1000);
+                time = time.toLocaleDateString() + ' ' + time.toLocaleTimeString();
+
+            /**
+             * Convert ['timereceived'] to miliseconds
+             */
+            var timereceived = new Date(cache['listsinceblock'][i]['timereceived'] * 1000);
+                timereceived = timereceived.toLocaleDateString() + ' ' + timereceived.toLocaleTimeString();
+
+
+            tx_history_csv.write(cache['listsinceblock'][i]['address'] + ', ' +
+                                 cache['listsinceblock'][i]['category'] + ', ' +
+                                 cache['listsinceblock'][i]['amount'] + ', ' +
+                                 cache['listsinceblock'][i]['confirmations'] + ', ' +
+                                 cache['listsinceblock'][i]['blockhash'] + ', ' +
+                                 cache['listsinceblock'][i]['blockindex'] + ', ' +
+                                 blocktime + ', ' +
+                                 cache['listsinceblock'][i]['txid'] + ', ' +
+                                 time + ', ' + timereceived + '\n');
+        }
+
+        tx_history_csv.end();
+        socket.emit('alerts', 'Transaction_history.csv successfuly dumped in your Vanilla WebUI directory.');
+    });
+
+    /**
      * Backup wallet
      */
     socket.on('backupwallet', function() {
@@ -710,6 +767,11 @@ io.on('connection', function(socket) {
                 console.log('RPC listsinceblock ERROR\n\n', error);
                 return;
             }
+
+            /**
+             * Sort transactions DESC
+             */
+            response['result']['transactions'].sort(function(a,b) { return new Date(b.timereceived).getTime() - new Date(a.timereceived).getTime()});
 
             cache['listsinceblock'] = response['result']['transactions'];
             socket.emit('listsinceblock', cache['listsinceblock']);
