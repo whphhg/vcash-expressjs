@@ -9,8 +9,12 @@ body {
     background:#fdfcf8;
     /* Margin bottom by footer height */
     margin-bottom: 40px;
+    font-family:'Open Sans';
+    font-size:13px;
 }
-
+.font-mono {
+    font-family:'Droid Sans Mono';
+}
 .navbar-qrcode, .navbar-passphrase {
     min-width:550px;
     padding-left:10px;
@@ -27,10 +31,16 @@ body {
     padding-right:10px;
 }
 
+.tooltip-inner {
+    max-width: none;
+    white-space: nowrap; 
+}
 
 a, a:visited, a:hover, a:active {
     color: #9b775d !important;
 }
+/* Hide sorting icons */
+.dataTable > thead > tr > th[class*="sort"]::after{display: none}
 
 .footer {
   position: absolute;
@@ -45,8 +55,6 @@ a, a:visited, a:hover, a:active {
 }
 h3 {
     font-size:19px;
-    margin-top:10px;
-    margin-bottom:10px;
 }
 .Sell {
     color:red;
@@ -70,28 +78,27 @@ h3 {
 .table > tfoot > tr > td {
     padding:0px;
     padding-left:2px;
+    padding-right:6px;
 }
 .col-centered{
     float: none;
     margin: 0 auto;
 }
 .navbar-brand img {
-    margin-top:-6px;
+    margin-top:-7px;
 }
 .navbar-header {
     width:35px;
 }
 .navbar {
     margin:0px;
+    margin-bottom:15px;
 }
 .red a,
 .red a:visited,
 .red a:hover,
 .red a:active {
     color:red !important;
-}
-.navbar {
-    margin-bottom:15px;
 }
 
 .m-tb-10 {
@@ -140,9 +147,7 @@ select {
     line-height:35px;
     min-height:36px;
 }
-#icon {
-    padding-top:4px;
-}
+
 #map {
     height:550px;
 }

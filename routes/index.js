@@ -443,7 +443,6 @@ io.on('connection', function(socket) {
             var timereceived = new Date(cache['listsinceblock'][i]['timereceived'] * 1000);
                 timereceived = timereceived.toLocaleDateString() + ' ' + timereceived.toLocaleTimeString();
 
-
             tx_history_csv.write(cache['listsinceblock'][i]['address'] + ', ' +
                                  cache['listsinceblock'][i]['category'] + ', ' +
                                  cache['listsinceblock'][i]['amount'] + ', ' +
@@ -931,7 +930,7 @@ io.on('connection', function(socket) {
             if (response['headers']['content-type'] == 'application/json') {
                 var body = JSON.parse(body);
 
-                if (body.length > 1) {
+                if (body) {
                     cache['vanilla_rates']['poloniex'] = parseFloat(body[0]['rate']);
                     socket.emit('trades_poloniex', body);
                 }
@@ -947,9 +946,11 @@ io.on('connection', function(socket) {
             if (response['headers']['content-type'] == 'application/json; charset=utf-8') {
                 var body = JSON.parse(body);
 
-                if (body['result'].length > 1) {
-                    cache['vanilla_rates']['bittrex'] = parseFloat(body['result'][0]['Price']);
-                    socket.emit('trades_bittrex', body['result']);
+                if (body) {
+                    if (body.hasOwnProperty('result')) {
+                        cache['vanilla_rates']['bittrex'] = parseFloat(body['result'][0]['Price']);
+                        socket.emit('trades_bittrex', body['result']);
+                    }
                 }
             }
         });
