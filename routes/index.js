@@ -861,7 +861,7 @@ io.on('connection', function(socket) {
                     if (response['result']['transactions'][i]['category'] == 'generate' || response['result']['transactions'][i]['category'] == 'immature') {
 
                         RPC_gettransaction(response['result']['transactions'][i]['txid'], function(response, txid) {
-                            if (response['amount'] != 0) {
+                            if (response['vout'][0]['scriptPubKey']['type'] == 'nonstandard') {
                                 cache['transactions']['edits'][txid] = {'pos':true, 'address':response['vout'][1]['scriptPubKey']['addresses'][0], 'amount':response['amount']};
                             } else {
                                 cache['transactions']['edits'][txid] = {'pos':false};
