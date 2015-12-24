@@ -9,86 +9,141 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
+var fs = require('fs');
+var https = require('https');
+var crypto = require('crypto');
 
 /**
- * Express framework
+ * Express
  */
 var express = require('express');
 var router = express.Router();
 
 /**
- * Start a new socket.io server listening on 20123
+ * Socket.io on 20123
  */
 var http = require('http');
-var https = require('https');
 var server = http.createServer(module.exports.app = express());
 var io = require('socket.io').listen(server.listen(20123));
 
 /**
- * Set port and host for RPC client
+ * New rpc connection to 127.0.0.1:9195
  */
 var rpc = require('node-json-rpc');
     rpc = new rpc.Client({port: 9195, host: '127.0.0.1', path: '/', strict: true});
 
 /**
- * Use nconf to load and update config.json
+ * Cache
  */
-var nconf = require('nconf').use('file', {file: './config.json'});
-    nconf.load();
-
-var extend = require('node.extend');
-var request = require('request');
+var cache = {'settings':{'local_currency':'EUR', 'hidden':{}},
+             'wallet_info':{'udp_connections':0},
+             'currencies':{'vanilla':{'poloniex':0, 'bittrex':0, 'average':0},
+                           'local':{'date':'', 'base':'', 'rates':{}}},
+             'accounts':{},
+             'watch_addresses':{},
+             'trades':[],
+             'nodes':{'connected':[], 'endpoints':[], 'geodata':{}},
+             'transactions':{'log':[], 'edits':{}},
+             'incentive_rewards':[{'block_number':284200, 'reward_percent':19},
+                                  {'block_number':292000, 'reward_percent':20},
+                                  {'block_number':300200, 'reward_percent':21},
+                                  {'block_number':308900, 'reward_percent':22},
+                                  {'block_number':318000, 'reward_percent':23},
+                                  {'block_number':327500, 'reward_percent':24},
+                                  {'block_number':337500, 'reward_percent':25},
+                                  {'block_number':347900, 'reward_percent':26},
+                                  {'block_number':358800, 'reward_percent':27},
+                                  {'block_number':370100, 'reward_percent':28},
+                                  {'block_number':381900, 'reward_percent':29},
+                                  {'block_number':394100, 'reward_percent':30},
+                                  {'block_number':406800, 'reward_percent':31},
+                                  {'block_number':419900, 'reward_percent':32},
+                                  {'block_number':433400, 'reward_percent':33},
+                                  {'block_number':447400, 'reward_percent':34},
+                                  {'block_number':461800, 'reward_percent':35},
+                                  {'block_number':476700, 'reward_percent':36},
+                                  {'block_number':492000, 'reward_percent':37}]}
 
 /**
- * On client connection
+ * 'filename':'cache-properties'
+ */
+var data_files = {'settings':'settings',
+                  'transactions_edits':'transactions-edits',
+                  'watch_addresses':'watch_addresses',
+                  'currencies':'currencies',
+                  'nodes_geodata':'nodes-geodata'}
+
+/**
+ * Create data/ directory if it doesn't exist
+ */
+if (!fs.existsSync('data')) {
+    fs.mkdirSync('data');
+}
+
+/**
+ * Read data files if they exist
+ */
+for (var filename in data_files) {
+    var property = data_files[filename].split('-');
+
+    (function(property, filename) {
+        fs.stat('data/' + filename + '.json', function(error, stats) { 
+            if (error) {
+                /**
+                 * Exit if error other than file not found
+                 */
+                if (error['code'] != 'ENOENT') {
+                    console.log('FS data/' + filename + '.json ERROR\n\n', error);
+                    return;
+                }
+            } else {
+                if (stats['size'] != 0) {
+                    fs.readFile('data/' + filename + '.json', function (error, data) {
+                        if (error) {
+                            console.log('FS.READ data/' + filename + '.json ERROR\n\n', error);
+                            return;
+                        }
+
+                        if (property.length > 1) {
+                            cache[property[0]][property[1]] = JSON.parse(data);
+                        } else {
+                            cache[property] = JSON.parse(data);
+                        }
+                    });
+                }
+            }
+        });
+    })(property, filename);
+}
+
+/**
+ * On socket connection
  */
 io.on('connection', function(socket) {
     /**
-     * Prepare cache
-     */
-    var cache = {'settings':nconf.get('settings'),
-                 'vanilla_rates':nconf.get('vanilla_rates'),
-                 'exchange_rates':nconf.get('exchange_rates'),
-                 'watch_addresses':nconf.get('watch_addresses'),
-                 'nodes_connected':[],
-                 'nodes_network':[],
-                 'nodes_geodata':{},
-                 'wallet_info':{'udp_connections':0},
-                 'listreceivedbyaddress':[],
-                 'listsinceblock':[],
-                 'incentive_rewards':[{'block_number':270000, 'reward_percent':17},
-                                      {'block_number':276900, 'reward_percent':18},
-                                      {'block_number':284200, 'reward_percent':19},
-                                      {'block_number':292000, 'reward_percent':20},
-                                      {'block_number':300200, 'reward_percent':21},
-                                      {'block_number':308900, 'reward_percent':22},
-                                      {'block_number':318000, 'reward_percent':23},
-                                      {'block_number':327500, 'reward_percent':24},
-                                      {'block_number':337500, 'reward_percent':25},
-                                      {'block_number':347900, 'reward_percent':26},
-                                      {'block_number':358800, 'reward_percent':27},
-                                      {'block_number':370100, 'reward_percent':28},
-                                      {'block_number':381900, 'reward_percent':29},
-                                      {'block_number':394100, 'reward_percent':30},
-                                      {'block_number':406800, 'reward_percent':31},
-                                      {'block_number':419900, 'reward_percent':32},
-                                      {'block_number':433400, 'reward_percent':33},
-                                      {'block_number':447400, 'reward_percent':34},
-                                      {'block_number':461800, 'reward_percent':35},
-                                      {'block_number':476700, 'reward_percent':36},
-                                      {'block_number':492000, 'reward_percent':37}]
-    }
-
-    /**
      * Update client with available currencies (for local currency select)
      */
-    socket.emit('exchange_rates', cache['exchange_rates']['rates']);
+    socket.emit('exchange_rates', cache['currencies']['local']['rates']);
+
+    /**
+     * Settings, set visibility of table with provided hash
+     */
+    socket.on('settings_hidden_set', function(hide) {
+        cache['settings']['hidden'][hide['hash']] = hide['hidden'];
+
+        fs.writeFile('data/settings.json', JSON.stringify(cache['settings'], null, 2), function(error) {
+            if (error) {
+                console.log('FS.WRITE data/settings.json (settings_hidden_set) ERROR\n\n', error);
+                return;
+            }
+        });
+    });
 
     /**
      * Encrypt wallet
@@ -100,7 +155,7 @@ io.on('connection', function(socket) {
                 return;
             }
 
-            socket.emit('alerts', 'Wallet successfuly encrypted. Restart Vanilla wallet.');
+            socket.emit('alerts', 'Wallet successfuly encrypted. Restart your main Vanilla wallet.');
         });
     });
 
@@ -142,33 +197,44 @@ io.on('connection', function(socket) {
     socket.on('currency_change', function(currency) {
         cache['settings']['local_currency'] = currency;
         socket.emit('currency_info', {'code':cache['settings']['local_currency'],
-                                      'btc':cache['exchange_rates']['rates'][cache['settings']['local_currency']]['btc'],
-                                      'vanilla_average':cache['vanilla_rates']['average']});
+                                      'btc':cache['currencies']['local']['rates'][cache['settings']['local_currency']]['btc'],
+                                      'vanilla_average':cache['currencies']['vanilla']['average']});
 
-        nconf.set('settings:local_currency', cache['settings']['local_currency']);
-        nconf.save(function(error) {
+        fs.writeFile('data/settings.json', JSON.stringify(cache['settings'], null, 2), function(error) {
             if (error) {
-                console.log('NCONF settings:local_currency ERROR\n\n', error['message']);
+                console.log('FS.WRITE data/settings.json (currency_change) ERROR\n\n', error);
                 return;
             }
         });
     });
 
     /**
-     * Send requested cache
+     * Send requested object
      */
     socket.on('cache_send', function(property) {
-        if (cache.hasOwnProperty(property)) {
-            socket.emit(property, cache[property]);
+        var property = property.split('-');
+
+        if (property.length > 1) {
+            if (cache[property[0]].hasOwnProperty(property[1])) {
+                socket.emit(property[0], cache[property[0]][property[1]]);
+            }
+        } else {
+            if (cache.hasOwnProperty(property)) {
+                if (property == 'watch_addresses') {
+                    socket.emit(property, {'hidden':cache['settings']['hidden']['watchonly'], 'addresses':cache['watch_addresses']});
+                } else {
+                    socket.emit(property, cache[property]);
+                }
+            }
         }
     });
 
     /**
-     * Refresh responses
+     * Re-send responses
      */
     socket.on('refresh', function() {
-        HTTPS_getwatchaddresses();
-        RPC_listreceivedbyaddress();
+        CHECK_watchaddresses();
+        RPC_listreceivedby();
         RPC_listsinceblock();
     });
 
@@ -176,13 +242,9 @@ io.on('connection', function(socket) {
 
 
 
-
-
-
-
-
-
-
+    /**
+     * <OVERHAUL>
+     */
 
     /**
      * Check if the address is valid before transfering coins
@@ -201,9 +263,6 @@ io.on('connection', function(socket) {
             }
         });
     });
-
-
-
 
     /**
      * Send amount to address
@@ -245,20 +304,14 @@ io.on('connection', function(socket) {
             } else {
                 socket.emit('alerts', "Sent " + amount + " VNL to " + address + " (txid: " + res.result + ").");
 
-                /**
-                 * Update recent transaction list
-                 */
                 RPC_listsinceblock();
             }
         }); 
     });
 
-
-
-
-
-
-
+    /**
+     * </OVERHAUL>
+     */
 
 
 
@@ -267,22 +320,25 @@ io.on('connection', function(socket) {
     /**
      * Get new receiving address
      */
-    socket.on('getnewaddress', function() {
-        rpc.call({'jsonrpc':'2.0', 'method':'getnewaddress', 'params':[], 'id':0}, function(error, response) {
+    socket.on('getnewaddress', function(account) {
+        rpc.call({'jsonrpc':'2.0', 'method':'getnewaddress', 'params':[account], 'id':0}, function(error, response) {
             if (error || !response) {
                 console.log('RPC getnewaddress ERROR\n\n', error);
                 return;
             }
 
-            RPC_listreceivedbyaddress();
+            RPC_listreceivedby();
         });
     });
 
     /**
      * Import a valid private key
      */
-    socket.on('importprivkey', function(key) {
-        rpc.call({'jsonrpc':'2.0', 'method':'importprivkey', 'params':[key], 'id':0}, function(error, response) {
+    socket.on('importprivkey', function(array) {
+        var key = array[0];
+        var account = array[1];
+
+        rpc.call({'jsonrpc':'2.0', 'method':'importprivkey', 'params':[key, account], 'id':0}, function(error, response) {
             if (error || !response) {
                 console.log('RPC importprivkey ERROR\n\n', error);
                 return;
@@ -304,87 +360,46 @@ io.on('connection', function(socket) {
                 }
             } else {
                 socket.emit('alerts', 'Private key successfully imported.');
-                RPC_listreceivedbyaddress();
+                RPC_listreceivedby();
             }
         });
     });
 
-
-
-
-
-
-
-
-
-
-
-
-
     /**
-     * Add new watch address object to config.json
+     * Add new watch-only address
      */
     socket.on('addwatchaddress', function(array) {
         var address = array[0];
         var title = array[1];
 
-        rpc.call({"jsonrpc": "2.0", "method": "validateaddress", "params": [address], "id": 0}, function(err, res) {
-            if (err) { console.log(err); }
-
+        RPC_validateaddress(address, function(response, address) {
+            /**
+             * Check if the address is already added
+             */
             var already_added = false;
 
-            /**
-             * Check if the address is already saved
-             */
             for (var i in cache['watch_addresses']) {
-                if (cache['watch_addresses'][i]['address'] == address) {
+                if (i == address) {
                     already_added = true;
                     break;
                 }
             }
 
-            if (res.result['isvalid'] && !res.result['ismine'] && !already_added) {
-                /**
-                 * Add new watch address object to watchaddresses array
-                 */
-                cache['watch_addresses'].push({"address":address, "title":title});
-
-                nconf.set('watch_addresses', cache['watch_addresses']);
-                nconf.save(function(err) {
-                    if (err) {
-                        console.error(err.message);
-                        return;
-                    }
-                });
-
-                /**
-                 * Update watch address list
-                 */
-                HTTPS_getwatchaddresses();
-            } else if (res.result['ismine']) {
+            /**
+             * Make sure address is valid, not yours & !already added
+             */
+            if (response['isvalid'] && !response['ismine'] && !already_added) {
+                cache['watch_addresses'][address] = {'title':title};
+                CHECK_watchaddresses();
+            } else if (response['ismine']) {
                 socket.emit('alerts', "The watch only address you've entered is already in your wallet.");
             } else if (already_added) {
                 socket.emit('alerts', "The watch only address you've entered is already on the list.");
             } else {
                 socket.emit('alerts', "The watch only address you've entered is not a valid address.");
             }
-        });
+        }, address);
     });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     /**
      * Retrieve incentive reward % based on provided block number
@@ -409,7 +424,7 @@ io.on('connection', function(socket) {
         /**
          * Use createWriteStream in case of large tx history
          */
-        var tx_history_csv = require('fs').createWriteStream('transaction_history.csv');
+        var tx_history_csv = fs.createWriteStream('transaction_history.csv');
 
         tx_history_csv.on('error', function(error) {
             console.log('CSV dumptxhistory ERROR\n\n', error);
@@ -419,38 +434,33 @@ io.on('connection', function(socket) {
         /**
          * Write column names
          */
-        tx_history_csv.write('address, category, amount, confirmations, blockhash, blockindex, blocktime, txid, time, timereceived\n');
+        tx_history_csv.write('account, address, category, amount, confirmations, blockhash, blockindex, blocktime, txid, time, timereceived\n');
 
-        /**
-         * Write rows
-         */
-        for (var i in cache['listsinceblock']) {
+        for (var i in cache['transactions']['log']) {
             /**
-             * Convert ['blocktime'] to miliseconds
+             * Convert to miliseconds
              */
-            var blocktime = new Date(cache['listsinceblock'][i]['blocktime'] * 1000);
+            var blocktime = new Date(cache['transactions']['log'][i]['blocktime'] * 1000);
                 blocktime = blocktime.toLocaleDateString() + ' ' + blocktime.toLocaleTimeString();
 
-            /**
-             * Convert ['time'] to miliseconds
-             */
-            var time = new Date(cache['listsinceblock'][i]['time'] * 1000);
+            var time = new Date(cache['transactions']['log'][i]['time'] * 1000);
                 time = time.toLocaleDateString() + ' ' + time.toLocaleTimeString();
 
-            /**
-             * Convert ['timereceived'] to miliseconds
-             */
-            var timereceived = new Date(cache['listsinceblock'][i]['timereceived'] * 1000);
+            var timereceived = new Date(cache['transactions']['log'][i]['timereceived'] * 1000);
                 timereceived = timereceived.toLocaleDateString() + ' ' + timereceived.toLocaleTimeString();
 
-            tx_history_csv.write(cache['listsinceblock'][i]['address'] + ', ' +
-                                 cache['listsinceblock'][i]['category'] + ', ' +
-                                 cache['listsinceblock'][i]['amount'] + ', ' +
-                                 cache['listsinceblock'][i]['confirmations'] + ', ' +
-                                 cache['listsinceblock'][i]['blockhash'] + ', ' +
-                                 cache['listsinceblock'][i]['blockindex'] + ', ' +
+            /**
+             * Write row
+             */
+            tx_history_csv.write(cache['transactions']['log'][i]['account'] + ', ' +
+                                 cache['transactions']['log'][i]['address'] + ', ' +
+                                 cache['transactions']['log'][i]['category'] + ', ' +
+                                 cache['transactions']['log'][i]['amount'] + ', ' +
+                                 cache['transactions']['log'][i]['confirmations'] + ', ' +
+                                 cache['transactions']['log'][i]['blockhash'] + ', ' +
+                                 cache['transactions']['log'][i]['blockindex'] + ', ' +
                                  blocktime + ', ' +
-                                 cache['listsinceblock'][i]['txid'] + ', ' +
+                                 cache['transactions']['log'][i]['txid'] + ', ' +
                                  time + ', ' + timereceived + '\n');
         }
 
@@ -583,147 +593,125 @@ io.on('connection', function(socket) {
         });
     });
 
-
-
-
-
-
-
-
-
-
-
     /**
-     * Get and set balances then emit the updated array
+     * Check balances of watch-only addresses
      */
-    function HTTPS_getwatchaddresses() {
-        /**
-         * Set balance for the provided address
-         */
-        function setBalance(address) {
-            for (key in cache['watch_addresses']) {
-                if (cache['watch_addresses'][key]['address'] == address) {
-                    cache['watch_addresses'][key]['balance'] = balance;
-                    break;
+    function CHECK_watchaddresses() {
+        var save = false;
+
+        for (var i in cache['watch_addresses']) {
+            HTTPS_getbalance(i, function(balance, address) {
+                if (cache['watch_addresses'][address]['balance'] != balance) {
+                    cache['watch_addresses'][address]['balance'] = balance;
+                    save = true;
                 }
-            }
+            });
         }
 
-        /**
-         * Get balance of the provided address
-         */
-        function getBalance(address) {
-            var request = https.get('https://blockchain.vanillacoin.net/ext/getbalance/$address'.replace('$address', address), function(res) {
-                res.on('data', function(obj) {
-                    /**
-                     * Make sure that the response is a valid float number
-                     * Since NaN is the only JavaScript value that is treated as unequal to itself, you can always test if a value is NaN by checking it for equality to itself
-                     */
-                    if (!(parseFloat(obj.toString('utf8')) !== parseFloat(obj.toString('utf8')))) {
-                        parsedObj = JSON.parse(obj);
+        setTimeout(function() {
+            /**
+             * If there's no settings entry, display watch-only addresses
+             */
+            if (!cache['settings']['hidden'].hasOwnProperty('watchonly')) {
+                cache['settings']['hidden']['watchonly'] = false;
+            }
 
-                        if (parsedObj.error) {
-                            balance = 0;
-                        } else {
-                            balance = parsedObj;
-                        }
+            socket.emit('watch_addresses', {'hidden':cache['settings']['hidden']['watchonly'], 'addresses':cache['watch_addresses']});
 
-                        setBalance(address);
+            if (save) {
+                fs.writeFile('data/watch_addresses.json', JSON.stringify(cache['watch_addresses'], null, 2), function(error) {
+                    if (error) {
+                        console.log('FS.WRITE data/watch_addresses.json ERROR\n\n', error);
+                        return;
                     }
                 });
-            });
-
-            request.on('error', function(err) {
-                console.log('ERR getBalance', err);
-            });
-        }
-
-        for (key in cache['watch_addresses']) {
-            if (!cache['watch_addresses'][key].hasOwnProperty('balance')) {
-                cache['watch_addresses'][key]['balance'] = 'Updating...';
             }
-
-            getBalance(cache['watch_addresses'][key]['address']);
-        }
-
-        /**
-         * Emit the array with 'Updating...' as balances on first load
-         */
-        socket.emit('watch_addresses', cache['watch_addresses']);
-
-        /**
-         * Emit it again after 1 second when balances (should) update. Increase this timeout if you've added a lot of watch-only addresses
-         */
-        setTimeout(function() {
-            socket.emit('watch_addresses', cache['watch_addresses']);
         }, 1000);
     }
 
     /**
-     * Update watch address data when a client connects and after that every 15 minutes
+     * Get balance of provided address
      */
-    (function update() {
-        HTTPS_getwatchaddresses();
+    function HTTPS_getbalance(address, callback) {
+        https.get('https://blockchain.vanillacoin.net/ext/getbalance/' + address, function(response) {
+            response.on('data', function(balance) {
+                /**
+                 * Make sure that the response is a valid float number
+                 * Since NaN is the only JavaScript value that is treated as unequal to itself, you can always test if a value is NaN by checking it for equality to itself
+                 */
+                if (!(parseFloat(balance.toString('utf8')) !== parseFloat(balance.toString('utf8')))) {
+                    var balance = JSON.parse(balance);
 
-        setTimeout(update, 900000);
-    })();
+                    if (balance['error']) {
+                        balance = 0;
+                    }
 
-
-
-
-
-
-
-
+                    callback(balance, address);
+                }
+            });
+        }).on('error', function(error) {
+            console.log('HTTPS https://blockchain.vanillacoin.net/ext/getbalance/' + address + ' ERROR\n\n', error);
+            return;
+        });
+    }
 
     /**
-     * Get lon, lat & country for provided IP and update nodes_geodata
+     * Get location of provided IP
      */
-    function HTTPS_freegeoip(ip) {
-        /**
-         * http://ip-api.com/json/_IP_ (was more accurate, but is http only)
-         */
-        request('https://freegeoip.net/json/$ip'.replace('$ip', ip), function(error, response, body) {
-            if (!response) { return; }
-            if (!error) {
-                /**
-                 * Make sure that response content-type is JSON
-                 */
-                if (response['headers']['content-type'] == 'application/json') {
-                    body = JSON.parse(body);
+    function HTTPS_getlocation(ip) {
+        https.get('https://freegeoip.net/json/' + ip, function(response) {
+            if (response['headers']['content-type'] == 'application/json') {
+                var buffer = '';
 
-                    /**
-                     * body will evalute to true if value is not: null, undefined, NaN, empty string (""), 0, false
-                     */
-                    if (body) {
-                        cache['nodes_geodata'][ip] = {"lon":body['longitude'], "lat":body['latitude'], "country":body['country_name']};
+                response.on('data', function(data) {
+                    buffer += data;
+                });
+
+                response.on('end', function() {
+                    var location_info = JSON.parse(buffer);
+
+                    if (location_info) {
+                        cache['nodes']['geodata'][ip] = {"lon":location_info['longitude'], "lat":location_info['latitude'], "country":location_info['country_name']};
                     }
-                } else {
-                    console.log('HTTPS_freegeoip() incorrect response content-type. Headers: ', response['headers']);
-                }
+                });
+            }
+        }).on('error', function(error) {
+            console.log('HTTPS https://freegeoip.net/json/' + ip + ' ERROR\n\n', error);
+            return;
+        });
+    }
+
+    /**
+     * RPC method 'validateaddress'
+     */
+    function RPC_validateaddress(address, callback, passalong) {
+        rpc.call({'jsonrpc':'2.0', 'method':'validateaddress', 'params':[address], 'id':0}, function(error, response) {
+            if (error || !response) {
+                console.log('RPC validateaddress ERROR\n\n', error);
+                return;
+            }
+
+            if (passalong) {
+                callback(response['result'], passalong);
             } else {
-                console.log('HTTPS_freegeoip()', error);
+                callback(response['result']);
             }
         });
     }
 
+    /**
+     * RPC method 'gettransaction'
+     */
+    function RPC_gettransaction(txid, callback) {
+        rpc.call({'jsonrpc':'2.0', 'method':'gettransaction', 'params':[txid], 'id':0}, function(error, response) {
+            if (error || !response) {
+                console.log('RPC gettransaction ERROR\n\n', error);
+                return;
+            }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+            callback(response['result'], txid);
+        });
+    }
 
     /**
      * RPC method 'walletpassphrase'
@@ -743,22 +731,76 @@ io.on('connection', function(socket) {
     }
 
     /**
-     * RPC method 'listreceivedbyaddress'
+     * Update account information
      */
-    function RPC_listreceivedbyaddress() {
-        rpc.call({'jsonrpc':'2.0', 'method':'listreceivedbyaddress', 'params':{'minconf':1, 'includeempty':true}, 'id':0}, function(error, response) {
+    function RPC_listreceivedby() {
+        rpc.call([{'jsonrpc':'2.0', 'method':'listreceivedbyaddress', 'params':{'minconf':1, 'includeempty':true}, 'id':0},
+                  {'jsonrpc':'2.0', 'method':'listreceivedbyaccount', 'params':{'minconf':1, 'includeempty':true}, 'id':0}], function(error, response) {
+
             if (error || !response) {
-                console.log('RPC listreceivedbyaddress ERROR\n\n', error);
+                console.log('RPC listreceivedbyaddress && listreceivedbyaccount ERROR\n\n', error);
                 return;
             }
 
-            cache['listreceivedbyaddress'] = response['result'];
-            socket.emit('listreceivedbyaddress', cache['listreceivedbyaddress']);
+            var byaddress = response[0]['result'];
+            var byaccount = response[1]['result'];
+            var accounts = {};
+
+            /**
+             * Set accounts
+             */
+            for (var i in byaccount) {
+                var hash = crypto.createHash('md5').update(byaccount[i]['account']).digest('hex');
+                var hidden = true;
+
+                /**
+                 * Correctly label empty "" (default) account
+                 */
+                if (!byaccount[i]['account']) {
+                    byaccount[i]['account'] = 'Default';
+                }
+
+                /**
+                 * If hash is found in settings, set visibility accordingly
+                 */
+                if (cache['settings']['hidden'].hasOwnProperty(hash)) {
+                    hidden = cache['settings']['hidden'][hash];
+                }
+
+                /**
+                 * If there's no settings entry, display Default account addresses
+                 */
+                if (!cache['settings']['hidden'].hasOwnProperty(hash) && byaccount[i]['account'] == 'Default') {
+                    hidden = false;
+                }
+
+                accounts[hash] = {'account':byaccount[i]['account'], 'hidden':hidden, 'received':byaccount[i]['amount'], 'addresses':[]};
+                cache['settings']['hidden'][hash] = hidden;
+            }
+
+            /**
+             * Push addresses to accounts
+             */
+            for (var i in byaddress) {
+                var hash = crypto.createHash('md5').update(byaddress[i]['account']).digest('hex');
+
+                /**
+                 * Correctly label empty "" (default) account
+                 */
+                if (!byaddress[i]['account']) {
+                    byaddress[i]['account'] = 'Default';
+                }
+
+                accounts[hash]['addresses'].push({'address':byaddress[i]['address'], 'received':byaddress[i]['amount'], 'confirmations':byaddress[i]['confirmations']});
+            }
+
+            cache['accounts'] = accounts;
+            socket.emit('accounts', cache['accounts']);
         });
     }
 
     /**
-     * RPC method 'listsinceblock
+     * Update transactions
      */
     function RPC_listsinceblock() {
         rpc.call({'jsonrpc':'2.0', 'method':'listsinceblock', 'params':[], 'id':0}, function(error, response) {
@@ -767,13 +809,101 @@ io.on('connection', function(socket) {
                 return;
             }
 
-            /**
-             * Sort transactions DESC
-             */
-            response['result']['transactions'].sort(function(a,b) { return new Date(b.timereceived).getTime() - new Date(a.timereceived).getTime()});
+            var length_before = Object.keys(cache['transactions']['edits']).length;
+            cache['transactions']['log'] = [];
 
-            cache['listsinceblock'] = response['result']['transactions'];
-            socket.emit('listsinceblock', cache['listsinceblock']);
+            for (var i in response['result']['transactions']) {
+                /**
+                 * Correctly label empty "" (default) account
+                 */
+                if (!response['result']['transactions'][i]['account']) {
+                    response['result']['transactions'][i]['account'] = 'Default';
+                }
+
+                /**
+                 * Check if txid exists in transactions_edits
+                 */
+                if (cache['transactions']['edits'][response['result']['transactions'][i]['txid']]) {
+                    /**
+                     * Category generate & immature
+                     */
+                    if (response['result']['transactions'][i]['category'] == 'generate' || response['result']['transactions'][i]['category'] == 'immature') {
+                        if (cache['transactions']['edits'][response['result']['transactions'][i]['txid']]['pos']) {
+                            response['result']['transactions'][i]['pos'] = true;
+                            response['result']['transactions'][i]['address'] = cache['transactions']['edits'][response['result']['transactions'][i]['txid']]['address'];
+                            response['result']['transactions'][i]['amount'] = cache['transactions']['edits'][response['result']['transactions'][i]['txid']]['amount'];
+                            response['result']['transactions'][i]['category'] = 'pos reward';
+                        } else {
+                            response['result']['transactions'][i]['pos'] = false;
+                            response['result']['transactions'][i]['category'] = 'incentive reward';
+                        }
+                    }
+
+                    /**
+                     * Category receive
+                     */
+                    if (response['result']['transactions'][i]['category'] == 'receive') {
+                        if (cache['transactions']['edits'][response['result']['transactions'][i]['txid']]['self-send']) {
+                            response['result']['transactions'][i]['category'] = 'self-send';
+                        }
+                    }
+
+                    /**
+                     * Exclude sends to self, push everything else
+                     */
+                    if (!(response['result']['transactions'][i]['category'] == 'send' && cache['transactions']['edits'][response['result']['transactions'][i]['txid']]['self-send'])) {
+                        cache['transactions']['log'].push(response['result']['transactions'][i]);
+                    }
+                } else {
+                    /**
+                     * Category generate & immature
+                     */
+                    if (response['result']['transactions'][i]['category'] == 'generate' || response['result']['transactions'][i]['category'] == 'immature') {
+
+                        RPC_gettransaction(response['result']['transactions'][i]['txid'], function(response, txid) {
+                            if (response['amount'] != 0) {
+                                cache['transactions']['edits'][txid] = {'pos':true, 'address':response['vout'][1]['scriptPubKey']['addresses'][0], 'amount':response['amount']};
+                            } else {
+                                cache['transactions']['edits'][txid] = {'pos':false};
+                            }
+                        });
+                    }
+
+                    /**
+                     * Category send -> self-send
+                     */
+                    var is_mine = false;
+
+                    if (response['result']['transactions'][i]['category'] == 'send') {
+                        RPC_validateaddress(response['result']['transactions'][i]['address'], function(address, txid) {
+                            if (address['ismine']) {
+                                is_mine = true;
+                                cache['transactions']['edits'][txid] = {'self-send':true};
+                            }
+                        }, response['result']['transactions'][i]['txid']);
+                    }
+
+                    /**
+                     * Exclude sends to self, push everything else
+                     */
+                    if (!is_mine) {
+                        cache['transactions']['log'].push(response['result']['transactions'][i]);
+                    }
+                }
+            }
+
+            setTimeout(function() {
+                if (Object.keys(cache['transactions']['edits']).length > length_before) {
+                    fs.writeFile('data/transactions_edits.json', JSON.stringify(cache['transactions']['edits'], null, 2), function(error) {
+                        if (error) {
+                            console.log('FS.WRITE data/transactions_edits.json ERROR\n\n', error);
+                            return;
+                        }
+                    });
+                }
+            }, 1000);
+
+            socket.emit('transactions', cache['transactions']['log']);
         });
     }
 
@@ -781,34 +911,40 @@ io.on('connection', function(socket) {
      * Get foreign exchange rates published by the European Central Bank (base USD)
      */
     (function() {
-        request('https://api.fixer.io/latest?base=USD', function(error, response, body) {
-            if (error || !response) {
-                console.log('HTTPS api.fixer.io/latest?base=USD ERROR\n\n', error);
-                return;
-            }
-
+        https.get('https://api.fixer.io/latest?base=USD', function(response) {
             if (response['headers']['content-type'] == 'application/json') {
-                var body = JSON.parse(body);
+                var buffer = '';
 
-                if (body.hasOwnProperty('date') && body.hasOwnProperty('base') && body.hasOwnProperty('rates')) {
-                    /**
-                     * Check if response is newer than the one in config
-                     */
-                    if (body['date'] != cache['exchange_rates']['date']) {
-                        cache['exchange_rates']['date'] = body['date'];
-                        cache['exchange_rates']['base'] = body['base'];
+                response.on('data', function(data) {
+                    buffer += data;
+                });
 
-                        for (var i in body['rates']) {
-                            cache['exchange_rates']['rates'][i] = {'rate':body['rates'][i]};
-                        }
+                response.on('end', function() {
+                    var exchange_rates = JSON.parse(buffer);
 
+                    if (exchange_rates.hasOwnProperty('date') && exchange_rates.hasOwnProperty('base') && exchange_rates.hasOwnProperty('rates')) {
                         /**
-                         * Because USD is used as base set its rate to 1
+                         * Check if response is newer
                          */
-                        cache['exchange_rates']['rates']['USD'] = {'rate':1};
+                        if (exchange_rates['date'] != cache['currencies']['local']['date']) {
+                            cache['currencies']['local']['date'] = exchange_rates['date'];
+                            cache['currencies']['local']['base'] = exchange_rates['base'];
+
+                            for (var i in exchange_rates['rates']) {
+                                cache['currencies']['local']['rates'][i] = {'rate':exchange_rates['rates'][i]};
+                            }
+
+                            /**
+                             * Because USD is used as base set its rate to 1
+                             */
+                            cache['currencies']['local']['rates']['USD'] = {'rate':1};
+                        }
                     }
-                }
+                });
             }
+        }).on('error', function(error) {
+            console.log('HTTPS api.fixer.io/latest?base=USD ERROR\n\n', error);
+            return;
         });
     })();
 
@@ -816,7 +952,9 @@ io.on('connection', function(socket) {
      * Update wallet info on initial client connection and repeat every 10 seconds
      */
     (function update() {
-        rpc.call([{'jsonrpc':'2.0', 'method':'getinfo', 'params':[], 'id':0}, {'jsonrpc':'2.0', 'method':'getincentiveinfo', 'params':[], 'id':0}], function(error, response) {
+        rpc.call([{'jsonrpc':'2.0', 'method':'getinfo', 'params':[], 'id':0},
+                  {'jsonrpc':'2.0', 'method':'getincentiveinfo', 'params':[], 'id':0}], function(error, response) {
+
             if (error || !response) {
                 console.log('RPC getinfo && getincentiveinfo ERROR\n\n', error);
                 return;
@@ -824,7 +962,11 @@ io.on('connection', function(socket) {
 
             for (var i in response) {
                 for (var j in response[i]['result']) {
-                    cache['wallet_info'][j] = response[i]['result'][j];
+                    if (j == 'version') {
+                        cache['wallet_info'][j] = response[i]['result'][j].replace(':', ' ');
+                    } else {
+                        cache['wallet_info'][j] = response[i]['result'][j];
+                    }
                 }
             }
 
@@ -838,7 +980,9 @@ io.on('connection', function(socket) {
      * Update nodes info on initial client connection and repeat every 60 seconds
      */
     (function update() {
-        rpc.call([{'jsonrpc':'2.0', 'method':'getpeerinfo', 'params':[], 'id':0}, {'jsonrpc':'2.0', 'method':'getnetworkinfo', 'params':[], 'id':0}], function(error, response) {
+        rpc.call([{'jsonrpc':'2.0', 'method':'getpeerinfo', 'params':[], 'id':0},
+                  {'jsonrpc':'2.0', 'method':'getnetworkinfo', 'params':[], 'id':0}], function(error, response) {
+
             if (error || !response) {
                 console.log('RPC getpeerinfo && getnetworkinfo ERROR\n\n', error);
                 return;
@@ -846,72 +990,75 @@ io.on('connection', function(socket) {
 
             var getpeerinfo = response[0]['result'];
             var getnetworkinfo = response[1]['result'];
+            var endpoints = [];
+            var save = false;
 
-            /**
-             * Update udp connection count
-             */
             cache['wallet_info']['udp_connections'] = getnetworkinfo['udp']['connections'];
 
-            /**
-             * TODO: Add radio button to geomap controls: Whole network / Connected nodes
-             */
-            cache['nodes_network'] = getnetworkinfo['endpoints'];
-
-            /**
-             * Sort getpeerinfo by subver, descending order
-             */
-            getpeerinfo.sort(function(a,b) {
-                return a['subver'] < b['subver'];
-            });
-
-            /**
-             * Deep copy getpeerinfo to avoid altering the original with deletes
-             */
-            var getpeerinfo_copy = extend(true, [], getpeerinfo);
-
             for (var i in getpeerinfo) {
-                /**
-                 * Check if address exists in previous result and if it has lon/lat
-                 */
-                for (var j in cache['nodes_connected']) {
-                    if (getpeerinfo[i]['addr'] == cache['nodes_connected'][j]['addr'] && cache['nodes_connected'][j]['lon'] && cache['nodes_connected'][j]['lat']) {
-                        delete getpeerinfo_copy[i];
-                        break;
-                    }
-                }
-
                 /**
                  * Add clean subver with '/' & ':' removed
                  */
                 if (getpeerinfo[i]['subver']) {
                     getpeerinfo[i]['subver_clean'] = getpeerinfo[i]['subver'].replace('/', '').replace('/', '').replace(':',' ');
                 } else {
-                    getpeerinfo[i]['subver_clean'] = 'No version';
+                    getpeerinfo[i]['subver_clean'] = 'No version response';
                 }
+
+                getpeerinfo[i]['group'] = 'Connected nodes';
 
                 /**
                  * Check if there's geodata on IP, else request it
                  */
                 var ip = getpeerinfo[i]['addr'].split(':')[0];
 
-                if (cache['nodes_geodata'][ip]) {
-                    getpeerinfo[i]['lon'] = cache['nodes_geodata'][ip]['lon'];
-                    getpeerinfo[i]['lat'] = cache['nodes_geodata'][ip]['lat'];
-                    getpeerinfo[i]['country'] = cache['nodes_geodata'][ip]['country'];
+                if (cache['nodes']['geodata'][ip]) {
+                    getpeerinfo[i]['lon'] = cache['nodes']['geodata'][ip]['lon'];
+                    getpeerinfo[i]['lat'] = cache['nodes']['geodata'][ip]['lat'];
+                    getpeerinfo[i]['country'] = cache['nodes']['geodata'][ip]['country'];
                 } else {
-                    HTTPS_freegeoip(ip);
+                    HTTPS_getlocation(ip);
+                    save = true;
                 }
             }
 
-            /**
-             * Check if getpeerinfo results differ
-             */
-            if (getpeerinfo_copy.length != 0) {
-                cache['nodes_connected'] = getpeerinfo;
-                socket.emit('nodes_geomap', cache['nodes_connected']);
+            for (var i in getnetworkinfo['endpoints']) {
+                /**
+                 * Check if there's geodata on IP, else request it
+                 */
+                var ip = getnetworkinfo['endpoints'][i].split(':')[0];
+
+                if (cache['nodes']['geodata'][ip]) {
+                    endpoints.push({'addr':getnetworkinfo['endpoints'][i],
+                                    'group':'Network endpoints',
+                                    'lon':cache['nodes']['geodata'][ip]['lon'],
+                                    'lat':cache['nodes']['geodata'][ip]['lat'],
+                                    'country':cache['nodes']['geodata'][ip]['country']});
+                } else {
+                    HTTPS_getlocation(ip);
+                    save = true;
+                }
             }
 
-            socket.emit('nodes_connected', getpeerinfo);
+            cache['nodes']['connected'] = getpeerinfo;
+            cache['nodes']['endpoints'] = endpoints;
+
+            /**
+             * Both connected nodes & endpoints arrays have the same format, so we join them into one array used by the geomap
+             */
+            socket.emit('nodes_geomap', cache['nodes']['endpoints'].concat(cache['nodes']['connected']));
+            socket.emit('nodes_connected', cache['nodes']['connected']);
+
+            if (save) {
+                setTimeout(function() {
+                    fs.writeFile('data/nodes_geodata.json', JSON.stringify(cache['nodes']['geodata'], null, 2), function(error) {
+                        if (error) {
+                            console.log('FS.WRITE data/nodes_geodata.json ERROR\n\n', error);
+                            return;
+                        }
+                    });
+                }, 1000);
+            }
         });
 
         setTimeout(update, 60000);
@@ -921,78 +1068,128 @@ io.on('connection', function(socket) {
      * Update latest trades from Poloniex & Bittrex on initial client connection and repeat every 75 seconds
      */
     (function update() {
-        request('https://poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL', function(error, response, body) {
-            if (error || !response) {
-                console.log('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL ERROR\n\n', error);
-                return;
-            }
+        var trades = [];
 
+        https.get('https://poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL', function(response) {
             if (response['headers']['content-type'] == 'application/json') {
-                var body = JSON.parse(body);
+                var buffer = '';
 
-                if (body) {
-                    cache['vanilla_rates']['poloniex'] = parseFloat(body[0]['rate']);
-                    socket.emit('trades_poloniex', body);
-                }
+                response.on('data', function(data) {
+                    buffer += data;
+                });
+
+                response.on('end', function() {
+                    var trade_history = JSON.parse(buffer);
+
+                    if (trade_history != null) {
+                        cache['currencies']['vanilla']['poloniex'] = parseFloat(trade_history[0]['rate']);
+
+                        for (var i in trade_history) {
+                            trades.push({'exchange':'poloniex',
+                                         'date':trade_history[i]['date'],
+                                         'type':trade_history[i]['type'],
+                                         'vanilla_rate':trade_history[i]['rate'],
+                                         'vanilla_amount':trade_history[i]['amount'],
+                                         'btc_total':trade_history[i]['total']});
+                        }
+                    }
+                });
             }
+        }).on('error', function(error) {
+            console.log('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL ERROR\n\n', error);
+            return;
         });
 
-        request('https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50', function(error, response, body) {
-            if (error || !response) {
-                console.log('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50 ERROR\n\n', error);
-                return;
-            }
-
+        https.get('https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50', function(response) {
             if (response['headers']['content-type'] == 'application/json; charset=utf-8') {
-                var body = JSON.parse(body);
+                var buffer = '';
 
-                if (body) {
-                    if (body.hasOwnProperty('result')) {
-                        cache['vanilla_rates']['bittrex'] = parseFloat(body['result'][0]['Price']);
-                        socket.emit('trades_bittrex', body['result']);
+                response.on('data', function(data) {
+                    buffer += data;
+                });
+
+                response.on('end', function() {
+                    var trade_history = JSON.parse(buffer);
+
+                    if (trade_history != null) {
+                        if (trade_history.hasOwnProperty('result')) {
+                            if (trade_history['result'].length != 0) {
+                                cache['currencies']['vanilla']['bittrex'] = parseFloat(trade_history['result'][0]['Price']);
+
+                                for (var i in trade_history['result']) {
+                                    trades.push({'exchange':'bittrex',
+                                                 'date':trade_history['result'][i]['TimeStamp'],
+                                                 'type':trade_history['result'][i]['OrderType'],
+                                                 'vanilla_rate':trade_history['result'][i]['Price'],
+                                                 'vanilla_amount':trade_history['result'][i]['Quantity'],
+                                                 'btc_total':trade_history['result'][i]['Total']});
+                                }
+                            }
+                        }
                     }
-                }
+                });
             }
+        }).on('error', function(error) {
+            console.log('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50 ERROR\n\n', error);
+            return;
         });
 
         /**
          * Update average vanilla rate
          */
         setTimeout(function() {
-            if (cache['vanilla_rates']['poloniex'] && cache['vanilla_rates']['bittrex']) {
-                cache['vanilla_rates']['average'] = (cache['vanilla_rates']['poloniex'] + cache['vanilla_rates']['bittrex']) / 2;
+            if (cache['currencies']['vanilla']['poloniex'] && cache['currencies']['vanilla']['bittrex']) {
+                cache['currencies']['vanilla']['average'] = (cache['currencies']['vanilla']['poloniex'] + cache['currencies']['vanilla']['bittrex']) / 2;
             } else {
-                cache['vanilla_rates']['average'] = cache['vanilla_rates']['poloniex'] + cache['vanilla_rates']['bittrex'];
+                cache['currencies']['vanilla']['average'] = cache['currencies']['vanilla']['poloniex'] + cache['currencies']['vanilla']['bittrex'];
             }
 
             /**
              * Don't update client on first run
              */
-            if (Object.keys(cache['exchange_rates']['rates']).length != 0) {
+            if (Object.keys(cache['currencies']['local']['rates']).length != 0) {
                 socket.emit('currency_info', {'code':cache['settings']['local_currency'],
-                                              'btc':cache['exchange_rates']['rates'][cache['settings']['local_currency']]['btc'],
-                                              'vanilla_average':cache['vanilla_rates']['average']});
+                                              'btc':cache['currencies']['local']['rates'][cache['settings']['local_currency']]['btc'],
+                                              'vanilla_average':cache['currencies']['vanilla']['average']});
             }
         }, 300);
+
+        socket.emit('trades', cache['trades']);
+
+        setTimeout(function() {
+            if (trades.length != 0) {
+                cache['trades'] = trades;
+            }
+
+            socket.emit('trades', cache['trades']);
+        }, 3000);
 
         setTimeout(update, 75000);
     })();
 
     setTimeout(function() {
         /**
-         * Update received by address totals on initial client connection and repeat every 90 seconds
+         * Update receivedby totals on initial client connection and repeat every 90 seconds
          */
         (function update() {
-            RPC_listreceivedbyaddress();
+            RPC_listreceivedby();
             setTimeout(update, 90000);
         })();
 
         /**
-         * Update transaction history on initial client connection and repeat every 120 seconds
+         * Update transaction history on initial client connection and repeat every 2 minutes
          */
         (function update() {
             RPC_listsinceblock();
             setTimeout(update, 120000);
+        })();
+
+        /**
+         * Update watch-only addresses on initial client connection and repeat every 15 minutes
+         */
+        (function update() {
+            CHECK_watchaddresses();
+            setTimeout(update, 900000);
         })();
     }, 300);
 
@@ -1000,38 +1197,42 @@ io.on('connection', function(socket) {
      * Update latest BTC prices on initial client connection and repeat every hour
      */
     (function update() {
-        request('https://www.bitstamp.net/api/ticker_hour/', function(error, response, body) {
-            if (error || !response) {
-                console.log('HTTPS www.bitstamp.net/api/ticker_hour/ ERROR\n\n', error);
-                return;
-            }
-
+        https.get('https://www.bitstamp.net/api/ticker_hour/', function(response) {
             if (response['headers']['content-type'] == 'application/json') {
-                var body = JSON.parse(body);
+                var buffer = '';
 
-                if (body.hasOwnProperty('last')) {
-                    setTimeout(function() {
-                        /**
-                         * Update BTC price for current rates
-                         */
-                        for (var i in cache['exchange_rates']['rates']) {
-                            cache['exchange_rates']['rates'][i]['btc'] = cache['exchange_rates']['rates'][i]['rate'] * body['last'];
-                        }
+                response.on('data', function(data) {
+                    buffer += data;
+                });
 
-                        /**
-                         * Save updated exchange & vanilla rates to config
-                         */
-                        nconf.set('exchange_rates', cache['exchange_rates']);
-                        nconf.set('vanilla_rates', cache['vanilla_rates']);
-                        nconf.save(function(error) {
-                            if (error) {
-                                console.log('NCONF exchange_rates && vanilla_rates ERROR\n\n', error['message']);
-                                return;
+                response.on('end', function() {
+                    var ticker_hourly = JSON.parse(buffer);
+
+                    if (ticker_hourly.hasOwnProperty('last')) {
+                        setTimeout(function() {
+                            /**
+                             * Update BTC price for current rates
+                             */
+                            for (var i in cache['currencies']['local']['rates']) {
+                                cache['currencies']['local']['rates'][i]['btc'] = cache['currencies']['local']['rates'][i]['rate'] * ticker_hourly['last'];
                             }
-                        });
-                    }, 1000);
-                }
+
+                            /**
+                             * Save currencies to disk
+                             */
+                            fs.writeFile('data/currencies.json', JSON.stringify(cache['currencies'], null, 2), function(error) {
+                                if (error) {
+                                    console.log('FS.WRITE data/currencies.json ERROR\n\n', error);
+                                    return;
+                                }
+                            });
+                        }, 1000);
+                    }
+                });
             }
+        }).on('error', function(error) {
+            console.log('HTTPS www.bitstamp.net/api/ticker_hour/ ERROR\n\n', error);
+            return;
         });
 
         setTimeout(update, 3600000);

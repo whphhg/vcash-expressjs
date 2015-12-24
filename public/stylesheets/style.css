@@ -2,18 +2,77 @@
  * General
  */
 html {
-  position: relative;
-  min-height: 100%;
+    position:relative;
+    min-height:100%;
 }
 body {
     background:#fdfcf8;
-    /* Margin bottom by footer height */
-    margin-bottom: 40px;
+    margin-bottom:40px; /* Margin bottom by footer height */
     font-family:'Open Sans';
     font-size:13px;
 }
+h3 {
+    font-size:19px;
+}
+a, a:visited, a:hover, a:active {
+    color:#a16b50 !important;
+}
+.Sell {
+    color:#d43500;
+}
+.Buy {
+    color:#4a9419;
+}
 .font-mono {
     font-family:'Droid Sans Mono';
+}
+.table {
+    margin-top:8px;
+    margin-bottom:8px;
+}
+.table > thead > tr > th,
+.table > tbody > tr > th,
+.table > tfoot > tr > th,
+.table > thead > tr > td,
+.table > tbody > tr > td,
+.table > tfoot > tr > td {
+    padding:0px;
+    padding-left:2px;
+    padding-right:6px;
+}
+blockquote {
+    font-size:14px;
+}
+input[type=text], input[type=password] {
+    margin-top:5px;
+}
+select {
+    margin-top:5px;
+    height:25px;
+}
+.footer {
+    position:absolute;
+    bottom:0;
+    width:100%;
+    height:40px; /* Set the fixed height of footer */
+    background-color:#f5f5f5;
+}
+.footer p {
+    padding-top:10px;
+}
+
+/**
+ * Navbar
+ */
+.navbar {
+    margin:0px;
+    margin-bottom:15px;
+}
+.navbar-header {
+    width:35px;
+}
+.navbar-brand img {
+    margin-top:-7px;
 }
 .navbar-qrcode, .navbar-passphrase {
     min-width:550px;
@@ -30,77 +89,54 @@ body {
     padding-left:10px;
     padding-right:10px;
 }
-
 .tooltip-inner {
-    max-width: none;
-    white-space: nowrap; 
-}
-
-a, a:visited, a:hover, a:active {
-    color: #9b775d !important;
-}
-/* Hide sorting icons */
-.dataTable > thead > tr > th[class*="sort"]::after{display: none}
-
-.footer {
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  /* Set the fixed height of the footer here */
-  height: 40px;
-  background-color: #f5f5f5;
-}
-.footer p {
-    padding-top:10px;
-}
-h3 {
-    font-size:19px;
-}
-.Sell {
-    color:red;
-}
-.Buy {
-    color:green;
-}
-.table {
-    margin-top:8px;
-    margin-bottom:8px;
-}
-.leaflet-control-layers {
-    background:#fdfcf8;
-}
-
-.table > thead > tr > th,
-.table > tbody > tr > th,
-.table > tfoot > tr > th,
-.table > thead > tr > td,
-.table > tbody > tr > td,
-.table > tfoot > tr > td {
-    padding:0px;
-    padding-left:2px;
-    padding-right:6px;
-}
-.col-centered{
-    float: none;
-    margin: 0 auto;
-}
-.navbar-brand img {
-    margin-top:-7px;
-}
-.navbar-header {
-    width:35px;
-}
-.navbar {
-    margin:0px;
-    margin-bottom:15px;
+    max-width:none;
+    white-space:nowrap;
 }
 .red a,
 .red a:visited,
 .red a:hover,
 .red a:active {
-    color:red !important;
+    color:#d43500 !important;
 }
 
+/**
+ * DataTables
+ */
+.dataTable > thead > tr > th[class*="sort"]::after {
+    display:none; /* Hide sorting icons */
+}
+.dataTables_filter {
+    display:none; /* Hide original filter */
+}
+#filter_transactions {
+    margin-top:12px;
+}
+
+/**
+ * Leaflet
+ */
+.leaflet-control-layers {
+    background:#fdfcf8;
+}
+#map {
+    height:500px;
+}
+
+/**
+ * Accounts and watch-only div
+ */
+#accounts .row, #clickable-watchonly {
+    cursor:pointer;
+}
+.nopadding {
+   padding:0 !important;
+   margin:0 !important;
+}
+
+/**
+ * Margins
+ */
 .m-tb-10 {
     margin-top:10px;
     margin-bottom:10px;
@@ -108,51 +144,19 @@ h3 {
 .m-t-10 {
     margin-top:10px;
 }
-
-input[type=text], input[type=password] {
-    margin-top:3px;
+.m-t-6 {
+    margin-top:6px;
 }
-#filter_transactions {
-    margin-top:12px;
-}
-.dataTables_filter {
-   display: none;
-}
-select {
-    margin-top:3px;
-    height:28px;
-}
-.nopadding {
-   padding: 0 !important;
-   margin: 0 !important;
-}
-.nopadding-r {
-    padding-right:0 !important;
-    margin-right:0 !important;
+.m-b-20 {
+    margin-bottom:20px;
 }
 .btn-m-l {
     margin-left:5px;
 }
-.btn-m-r {
-    margin-right:5px;
-}
-.btn-m-lr {
-    margin-left:5px;
-    margin-right:5px;
-}
-.lh-33 {
-    line-height:33px;
-}
-#blocktime_estimation {
-    line-height:35px;
-    min-height:36px;
-}
 
-#map {
-    height:550px;
-}
-blockquote {
-    font-size:14px;
+#blocktime_estimation {
+    line-height:32px;
+    min-height:36px;
 }
 
 /**

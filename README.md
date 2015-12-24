@@ -21,14 +21,14 @@ npm start
 ```
 
 **Main**
-![Alt](http://i.imgur.com/20NBIUq.png)
+![Alt](http://i.imgur.com/4kFiggk.png)
 
 **Node incentives**
 ![Alt](http://i.imgur.com/YXoOAzX.png)
 ![Alt](http://i.imgur.com/Eudv5q1.png)
 
 **Network**
-![Alt](http://i.imgur.com/9Xy0JTs.jpg)
+![Alt](http://i.imgur.com/MbjMdm3.jpg)
 
 **Maintenance**
 ![Alt](http://i.imgur.com/MuMEZLL.png)

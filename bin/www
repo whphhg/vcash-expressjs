@@ -19,7 +19,7 @@ var server = http.createServer(app);
     server.listen(port, 'localhost');
 
 server.on('listening', function() {
-    console.log('Vanillacoind web ui started on ' + server.address().address + ':' + server.address().port + '.');
+    console.log('Vanilla WebUI viewable on ' + server.address().address + ':' + server.address().port + '.\n');
 });
 
 server.on('error', onError);
