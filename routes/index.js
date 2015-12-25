@@ -832,10 +832,16 @@ io.on('connection', function(socket) {
                             response['result']['transactions'][i]['pos'] = true;
                             response['result']['transactions'][i]['address'] = cache['transactions']['edits'][response['result']['transactions'][i]['txid']]['address'];
                             response['result']['transactions'][i]['amount'] = cache['transactions']['edits'][response['result']['transactions'][i]['txid']]['amount'];
-                            response['result']['transactions'][i]['category'] = 'pos reward';
+
+                            if (response['result']['transactions'][i]['category'] == 'generate') {
+                                response['result']['transactions'][i]['category'] = 'pos reward';
+                            }
                         } else {
                             response['result']['transactions'][i]['pos'] = false;
-                            response['result']['transactions'][i]['category'] = 'incentive reward';
+
+                            if (response['result']['transactions'][i]['category'] == 'generate') {
+                                response['result']['transactions'][i]['category'] = 'incentive reward';
+                            }
                         }
                     }
 
@@ -1111,8 +1117,8 @@ io.on('connection', function(socket) {
                 response.on('end', function() {
                     var trade_history = JSON.parse(buffer);
 
-                    if (trade_history != null) {
-                        if (trade_history.hasOwnProperty('result')) {
+                    if (trade_history) {
+                        if (trade_history['result']) {
                             if (trade_history['result'].length != 0) {
                                 cache['currencies']['vanilla']['bittrex'] = parseFloat(trade_history['result'][0]['Price']);
 

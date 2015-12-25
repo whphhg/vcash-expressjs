@@ -986,8 +986,12 @@ block content
 
                                 var confs = '';
 
-                                if (obj[key]['confirmations'] == 0) {
+                                if (obj[key]['confirmations'] == 0 && obj[key]['category'] != 'immature') {
                                     confs = ' (0/1)';
+                                }
+
+                                if (obj[key]['category'] == 'immature') {
+                                    confs = ' (' + obj[key]['confirmations'] + '/200)';
                                 }
 
                                 var address = '<a href="https://blockchain.vanillacoin.net/address/' + obj[key]['address'] + '" target="_blank">' + obj[key]['address'] + '</a>';
