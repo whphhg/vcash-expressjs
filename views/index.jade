@@ -1,25 +1,25 @@
 //
-    Copyright (C) 2015 whphhg
+  Copyright (C) 2015 whphhg
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version. For more information read the
-    complete license in LICENSE.md.
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version. For more information read the
+  complete license in LICENSE.md.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 extends layout
 block content
     script.
         /**
-         * Start socket.io on :20123
+         * Socket.io on 20123
          */
         socket = io(':20123');
 
@@ -130,7 +130,7 @@ block content
                 /**
                  * Doesn't slow down page-load time as much as adjusting the headers
                  */
-                socket.emit('cache_send', 'transactions-log');
+                socket.emit('cache_send', 'transactions.log');
                 socket.emit('cache_send', 'trades');
             } else {
                 /**
@@ -788,7 +788,7 @@ block content
                                     /**
                                      * Call RPC method importprivkey on the server
                                      */
-                                    socket.emit('importprivkey', [$('#input_import_private_key').val(), account]);
+                                    socket.emit('importprivkey', {'key':$('#input_import_private_key').val(), 'account':account});
                                 }
                             });
 
@@ -875,7 +875,7 @@ block content
                                      * Emit new watch address
                                      */
                                     $('#button_add_watch_address').click(function() {
-                                        socket.emit('addwatchaddress', [$('#input_watch_address').val(), $('#input_watch_address_title').val()]);
+                                        socket.emit('addwatchaddress', {'address':$('#input_watch_address').val(), 'title':$('#input_watch_address_title').val()});
                                     });
 
                     .row-m-tb-10
@@ -991,7 +991,7 @@ block content
                                 }
 
                                 if (obj[key]['category'] == 'immature') {
-                                    confs = ' (' + obj[key]['confirmations'] + '/200)';
+                                    confs = ' (' + obj[key]['confirmations'] + '/220)';
                                 }
 
                                 var address = '<a href="https://blockchain.vanillacoin.net/address/' + obj[key]['address'] + '" target="_blank">' + obj[key]['address'] + '</a>';
@@ -1432,7 +1432,7 @@ block content
                                              */
                                             socket.emit('cache_send', 'watch_addresses');
                                             socket.emit('cache_send', 'accounts');
-                                            socket.emit('cache_send', 'transactions-log');
+                                            socket.emit('cache_send', 'transactions.log');
 
                                             /**
                                              * Hide conversion info on currency switch and clear input field
