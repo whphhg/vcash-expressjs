@@ -881,6 +881,10 @@ io.on('connection', function(socket) {
           if (response.result.transactions[i].category === 'generate' || response.result.transactions[i].category === 'immature') {
             rpc_gettransaction(response.result.transactions[i].txid, function(response, txid) {
               if (response.vout[0].scriptPubKey.type === 'nonstandard') {
+                if (response.amount < 0) {
+                  response.amount = response.amount + response.details[0].amount;
+                }
+
                 cache.transactions.edits[txid] = {
                   'pos':true,
                   'address':response.vout[1].scriptPubKey.addresses[0],
