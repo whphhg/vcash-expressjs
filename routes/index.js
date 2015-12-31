@@ -15,6 +15,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
+"use strict";
+
 var fs = require('fs');
 var https = require('https');
 var crypto = require('crypto');
@@ -36,7 +38,12 @@ var io = require('socket.io').listen(server.listen(20123));
  * RPC connection to 127.0.0.1:9195
  */
 var rpc = require('node-json-rpc');
-    rpc = new rpc.Client({'port':9195, 'host':'127.0.0.1', 'path':'/', 'strict':true});
+    rpc = new rpc.Client({
+      'port':9195,
+      'host':'127.0.0.1',
+      'path':'/',
+      'strict':true
+    });
 
 /**
  * Data object
@@ -152,9 +159,16 @@ for (var filename in data_files) {
  */
 io.on('connection', function(socket) {
   /**
-   * Update client with available currencies (for local currency select)
+   * Update client with available currencies (for local currency select) & selected currency info
    */
-  socket.emit('exchange_rates', cache.currencies.local.rates);
+  if (cache.currencies.local.date) {
+    socket.emit('exchange_rates', cache.currencies.local.rates);
+    socket.emit('currency_info', {
+      'code':cache.settings.local_currency,
+      'btc':cache.currencies.local.rates[cache.settings.local_currency].btc,
+      'vanilla_average':cache.currencies.vanilla.average
+    });
+  }
 
   /**
   * Settings, set visibility of table with provided hash
@@ -446,17 +460,19 @@ io.on('connection', function(socket) {
       /**
        * Write row
        */
-      tx_history_csv.write(cache.transactions.log[i].account + ', ' +
-                           cache.transactions.log[i].address + ', ' +
-                           cache.transactions.log[i].category + ', ' +
-                           cache.transactions.log[i].amount + ', ' +
-                           cache.transactions.log[i].confirmations + ', ' +
-                           cache.transactions.log[i].blockhash + ', ' +
-                           cache.transactions.log[i].blockindex + ', ' +
-                           blocktime + ', ' +
-                           cache.transactions.log[i].txid + ', ' +
-                           time + ', ' +
-                           timereceived + '\n');
+      tx_history_csv.write(
+        cache.transactions.log[i].account + ', ' +
+        cache.transactions.log[i].address + ', ' +
+        cache.transactions.log[i].category + ', ' +
+        cache.transactions.log[i].amount + ', ' +
+        cache.transactions.log[i].confirmations + ', ' +
+        cache.transactions.log[i].blockhash + ', ' +
+        cache.transactions.log[i].blockindex + ', ' +
+        blocktime + ', ' +
+        cache.transactions.log[i].txid + ', ' +
+        time + ', ' +
+        timereceived + '\n'
+      );
     }
 
     tx_history_csv.end();
@@ -592,21 +608,43 @@ io.on('connection', function(socket) {
    * Check balances of watch-only addresses
    */
   function check_watchaddresses() {
+    var promises = [];
     var save = false;
 
     for (var i in cache.watch_addresses) {
-      https_getbalance(i, function(balance, address) {
-        if (cache.watch_addresses[address].balance !== balance) {
-          cache.watch_addresses[address].balance = balance;
-          save = true;
-        }
-      });
+      promises.push(
+        new Promise(function(resolve, reject) {
+          (function(address) {
+            https.get('https://blockchain.vanillacoin.net/ext/getbalance/' + address, function(response) {
+              response.on('data', function(balance) {
+                /**
+                 * NaN is the only value that is treated as unequal to itself,
+                 * you can always test if a value is NaN by checking it for equality to itself
+                 */
+                if (!(parseFloat(balance.toString()) !== parseFloat(balance.toString()))) {
+                  var balance = JSON.parse(balance);
+
+                  if (balance.error) {
+                    balance = 0;
+                  }
+
+                  if (cache.watch_addresses[address].balance !== balance) {
+                    cache.watch_addresses[address].balance = balance;
+                    save = true;
+                  }
+
+                  return resolve(save);
+                }
+              });
+            }).on('error', function(error) {
+              return reject('HTTPS https://blockchain.vanillacoin.net/ext/getbalance/' + address + ' ERROR\n\n' + error);
+            });
+          })(i);
+        })
+      );
     }
 
-    setTimeout(function() {
-      /**
-       * If there's no settings entry, display watch-only addresses
-       */
+    Promise.all(promises).then(function AcceptHandler() {
       if (!cache.settings.hidden.hasOwnProperty('watchonly')) {
         cache.settings.hidden.watchonly = false;
       }
@@ -624,32 +662,8 @@ io.on('connection', function(socket) {
           }
         });
       }
-    }, 1000);
-  }
-
-  /**
-   * Get balance of provided address
-   */
-  function https_getbalance(address, callback) {
-    https.get('https://blockchain.vanillacoin.net/ext/getbalance/' + address, function(response) {
-      response.on('data', function(balance) {
-        /**
-         * Make sure that the response is a valid float number
-         * Since NaN is the only JavaScript value that is treated as unequal to itself, you can always test if a value is NaN by checking it for equality to itself
-         */
-        if (!(parseFloat(balance.toString('utf8')) !== parseFloat(balance.toString('utf8')))) {
-          var balance = JSON.parse(balance);
-
-          if (balance.error) {
-            balance = 0;
-          }
-
-          callback(balance, address);
-        }
-      });
-    }).on('error', function(error) {
-      console.log('HTTPS https://blockchain.vanillacoin.net/ext/getbalance/' + address + ' ERROR\n\n', error);
-      return;
+    }, function ErrorHandler(error) {
+      console.log(error);
     });
   }
 
@@ -1110,107 +1124,116 @@ io.on('connection', function(socket) {
    * Update latest trades from Poloniex & Bittrex on initial client connection and repeat every 75 seconds
    */
   (function update() {
-    var trades = [];
+    var promises = [];
 
-    https.get('https://poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL', function(response) {
-      if (response.headers['content-type'] === 'application/json') {
-          var buffer = '';
+    promises.push(
+      new Promise(function(resolve, reject) {
+        var trades = [];
 
-          response.on('data', function(data) {
+        https.get('https://poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL', function(response) {
+          if (response.headers['content-type'] === 'application/json') {
+            var buffer = '';
+
+            response.on('data', function(data) {
               buffer += data;
-          });
+            });
 
-          response.on('end', function() {
+            response.on('end', function() {
               var trade_history = JSON.parse(buffer);
 
               if (trade_history !== null) {
-                  cache.currencies.vanilla.poloniex = parseFloat(trade_history[0].rate);
+                cache.currencies.vanilla.poloniex = parseFloat(trade_history[0].rate);
 
-                  for (var i in trade_history) {
-                      trades.push({
-                        'exchange':'poloniex',
-                        'date':trade_history[i].date,
-                        'type':trade_history[i].type,
-                        'vanilla_rate':trade_history[i].rate,
-                        'vanilla_amount':trade_history[i].amount,
-                        'btc_total':trade_history[i].total
-                      });
-                  }
-              }
-          });
-      }
-    }).on('error', function(error) {
-      console.log('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL ERROR\n\n', error);
-      return;
-    });
-
-    https.get('https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50', function(response) {
-      if (response.headers['content-type'] === 'application/json; charset=utf-8') {
-        var buffer = '';
-
-        response.on('data', function(data) {
-          buffer += data;
-        });
-
-        response.on('end', function() {
-            var trade_history = JSON.parse(buffer);
-
-            if (trade_history) {
-                if (trade_history.result) {
-                    if (trade_history.result.length !== 0) {
-                        cache.currencies.vanilla.bittrex = parseFloat(trade_history.result[0].Price);
-
-                        for (var i in trade_history.result) {
-                            trades.push({
-                              'exchange':'bittrex',
-                              'date':trade_history.result[i].TimeStamp,
-                              'type':trade_history.result[i].OrderType,
-                              'vanilla_rate':trade_history.result[i].Price,
-                              'vanilla_amount':trade_history.result[i].Quantity,
-                              'btc_total':trade_history.result[i].Total
-                            });
-                        }
-                    }
+                for (var i in trade_history) {
+                  trades.push({
+                    'exchange':'poloniex',
+                    'date':trade_history[i].date,
+                    'type':trade_history[i].type,
+                    'vanilla_rate':trade_history[i].rate,
+                    'vanilla_amount':trade_history[i].amount,
+                    'btc_total':trade_history[i].total
+                  });
                 }
-            }
-        });
-      }
-    }).on('error', function(error) {
-      console.log('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50 ERROR\n\n', error);
-      return;
-    });
 
-    /**
-     * Update average vanilla rate
-     */
-    setTimeout(function() {
+                return resolve(trades);
+              }
+            });
+          }
+        }).on('error', function(error) {
+          return reject('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL ERROR\n\n' + error);
+        });
+      })
+    );
+
+    promises.push(
+      new Promise(function(resolve, reject) {
+        var trades = [];
+
+        https.get('https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50', function(response) {
+          if (response.headers['content-type'] === 'application/json; charset=utf-8') {
+            var buffer = '';
+
+            response.on('data', function(data) {
+              buffer += data;
+            });
+
+            response.on('end', function() {
+              var trade_history = JSON.parse(buffer);
+
+              if (trade_history) {
+                if (trade_history.result) {
+                  if (trade_history.result.length !== 0) {
+                    cache.currencies.vanilla.bittrex = parseFloat(trade_history.result[0].Price);
+
+                    for (var i in trade_history.result) {
+                      trades.push({
+                        'exchange':'bittrex',
+                        'date':trade_history.result[i].TimeStamp,
+                        'type':trade_history.result[i].OrderType,
+                        'vanilla_rate':trade_history.result[i].Price,
+                        'vanilla_amount':trade_history.result[i].Quantity,
+                        'btc_total':trade_history.result[i].Total
+                      });
+                    }
+
+                    return resolve(trades);
+                  }
+                }
+              }
+            });
+          }
+        }).on('error', function(error) {
+          return reject('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50 ERROR\n\n' + error);
+        });
+      })
+    );
+
+    Promise.all(promises).then(function AcceptHandler(trades) {
+      var poloniex = trades[0];
+      var bittrex = trades[1];
+      var trades = poloniex.concat(bittrex);
+
+      if (trades.length !== 0) {
+        cache.trades = trades;
+        socket.emit('trades', cache.trades);
+      }
+
       if (cache.currencies.vanilla.poloniex && cache.currencies.vanilla.bittrex) {
         cache.currencies.vanilla.average = (cache.currencies.vanilla.poloniex + cache.currencies.vanilla.bittrex) / 2;
       } else {
         cache.currencies.vanilla.average = cache.currencies.vanilla.poloniex + cache.currencies.vanilla.bittrex;
       }
 
-      /**
-       * Don't update client on first run
-       */
-      if (Object.keys(cache.currencies.local.rates).length !== 0) {
+      if (cache.currencies.local.date) {
         socket.emit('currency_info', {
           'code':cache.settings.local_currency,
           'btc':cache.currencies.local.rates[cache.settings.local_currency].btc,
           'vanilla_average':cache.currencies.vanilla.average
         });
       }
-    }, 300);
-
-    socket.emit('trades', cache.trades);
-
-    setTimeout(function() {
-      if (trades.length !== 0) {
-        cache.trades = trades;
-      }
-
-      socket.emit('trades', cache.trades);
-    }, 3000);
+    }, function ErrorHandler(error) {
+      console.log(error);
+    });
 
     setTimeout(update, 75000);
   })();
@@ -1257,24 +1280,16 @@ io.on('connection', function(socket) {
           var ticker_hourly = JSON.parse(buffer);
 
           if (ticker_hourly.hasOwnProperty('last')) {
-            setTimeout(function() {
-              /**
-               * Update BTC price for current rates
-               */
-              for (var i in cache.currencies.local.rates) {
-                cache.currencies.local.rates[i].btc = cache.currencies.local.rates[i].rate * ticker_hourly.last;
-              }
+            for (var i in cache.currencies.local.rates) {
+              cache.currencies.local.rates[i].btc = cache.currencies.local.rates[i].rate * ticker_hourly.last;
+            }
 
-              /**
-               * Save currencies to disk
-               */
-              fs.writeFile('data/currencies.json', JSON.stringify(cache.currencies), function(error) {
-                if (error) {
-                  console.log('FS.WRITE data/currencies.json ERROR\n\n', error);
-                  return;
-                }
-              });
-            }, 1000);
+            fs.writeFile('data/currencies.json', JSON.stringify(cache.currencies), function(error) {
+              if (error) {
+                console.log('FS.WRITE data/currencies.json ERROR\n\n', error);
+                return;
+              }
+            });
           }
         });
       }
