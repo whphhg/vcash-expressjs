@@ -962,21 +962,16 @@ block content
                                  */
                                 if (obj[key].hasOwnProperty('pos')) {
                                     if (!obj[key]['pos']) {
-                                        var month_generated = new Date(obj[key]['timereceived'] * 1000).getMonth() + 1;
-                                        var day_generated = new Date(obj[key]['timereceived'] * 1000).getDate().toString();
+                                        var month_generated = new Date(obj[key]['timereceived']).getMonth() + 1;
+                                        var day_generated = new Date(obj[key]['timereceived']).getDate().toString();
 
                                         if (month_generated == month) {
                                             rewards_current_month[day_generated - 1]['rewards'] += 1;
                                         }
 
-                                        rewards_spread.push({"value":obj[key]['timereceived'] * 1000});
+                                        rewards_spread.push({"value":obj[key]['timereceived']});
                                     }
                                 }
-
-                                /**
-                                 * Convert ['timereceived'] to miliseconds
-                                 */
-                                var timereceived = new Date(obj[key]['timereceived'] * 1000);
 
                                 var color = 'Buy';
 
@@ -1000,7 +995,7 @@ block content
                                     color = '';
                                 }
 
-                                html_table.append('<tr><td>' + moment(timereceived).format('YYYY-MM-DD HH:mm:ss') + '</td><td>' + obj[key]['account'] + '</td><td class="font-mono">' + address + '</td><td>' + obj[key]['category'] + confs + '</td><td class="text-right ' + color + '">' + accounting.formatMoney(obj[key]['amount'], '', 6, ',', '.') + '</td><td class="text-right ' + color + '">' + accounting.formatMoney(obj[key]['amount'] * local_currency['btc'] * local_currency['vanilla_average'], local_params['symbol'], 2, local_params['thousand'], local_params['decimal']) + ' ' + local_currency['code'] + '</td><td class="font-mono">' + blockhash + '</td><td class="font-mono"><a href="https://blockchain.vanillacoin.net/tx/' + obj[key]['txid'] + '" target="_blank">' + obj[key]['txid'].substring(0, 10) + '</a></td></tr>');
+                                html_table.append('<tr><td>' + moment(obj[key]['timereceived']).format('YYYY-MM-DD HH:mm:ss') + '</td><td>' + obj[key]['account'] + '</td><td class="font-mono">' + address + '</td><td>' + obj[key]['category'] + confs + '</td><td class="text-right ' + color + '">' + accounting.formatMoney(obj[key]['amount'], '', 6, ',', '.') + '</td><td class="text-right ' + color + '">' + accounting.formatMoney(obj[key]['amount'] * local_currency['btc'] * local_currency['vanilla_average'], local_params['symbol'], 2, local_params['thousand'], local_params['decimal']) + ' ' + local_currency['code'] + '</td><td class="font-mono">' + blockhash + '</td><td class="font-mono"><a href="https://blockchain.vanillacoin.net/tx/' + obj[key]['txid'] + '" target="_blank">' + obj[key]['txid'].substring(0, 10) + '</a></td></tr>');
                             }
 
                             /**
@@ -1156,7 +1151,7 @@ block content
                                     | from the Vanilla wiki.
             .row
                 .col-md-2
-                    input.col-md-12(id="input_estimate_blocktime", type="text", maxlength="6", placeholder="Estimate block time")
+                    input.col-md-12(id="input_estimate_blocktime", type="text", maxlength="6", placeholder="Estimate future block time")
                 .col-md-10#blocktime_estimation
                     b #[span#future_block_already_submitted]
                     #estimate_blocktime.hidden
@@ -1358,13 +1353,6 @@ block content
 
                         for (key in obj) {
                             /**
-                             * Convert time fields to miliseconds
-                             */
-                            var lastsend = new Date(obj[key]['lastsend'] * 1000);
-                            var lastrecv = new Date(obj[key]['lastrecv'] * 1000);
-                            var conntime = new Date(obj[key]['conntime'] * 1000);
-
-                            /**
                              * Check if country is set and update accordingly
                              */
                             if (obj[key].hasOwnProperty('country')) {
@@ -1373,7 +1361,7 @@ block content
                                 var country = 'Updating..';
                             }
 
-                            html_table.append('<tr><td>' + obj[key]['addr'] + '</td><td>' + country + '</td><td>' + moment(lastsend).format('YYYY-MM-DD HH:mm:ss') + '</td><td>' + moment(lastrecv).format('YYYY-MM-DD HH:mm:ss') + '</td><td>' + moment(conntime).fromNow() + '</td><td>' + obj[key]['version'] + '</td><td>' + obj[key]['subver_clean'] + '</td><td>' + obj[key]['inbound'] + '</td><td>' + obj[key]['startingheight'] + '</td><td>' + obj[key]['banscore'] + '/100</td></tr>');
+                            html_table.append('<tr><td>' + obj[key]['addr'] + '</td><td>' + country + '</td><td>' + moment(obj[key]['lastsend']).format('YYYY-MM-DD HH:mm:ss') + '</td><td>' + moment(obj[key]['lastrecv']).format('YYYY-MM-DD HH:mm:ss') + '</td><td>' + moment(obj[key]['conntime']).fromNow() + '</td><td>' + obj[key]['version'] + '</td><td>' + obj[key]['subver_clean'] + '</td><td>' + obj[key]['inbound'] + '</td><td>' + obj[key]['startingheight'] + '</td><td>' + obj[key]['banscore'] + '/100</td></tr>');
                         }
 
                         $('#table_getpeerinfo').append(html_table);

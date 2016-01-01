@@ -444,36 +444,28 @@ io.on('connection', function(socket) {
      */
     tx_history_csv.write('account, address, category, amount, confirmations, blockhash, blockindex, blocktime, txid, time, timereceived\n');
 
-    for (var i in cache.transactions.log) {
-      /**
-       * Convert to miliseconds
-       */
-      var blocktime = new Date(cache.transactions.log[i].blocktime * 1000);
-          blocktime = blocktime.toLocaleDateString() + ' ' + blocktime.toLocaleTimeString();
-
-      var time = new Date(cache.transactions.log[i].time * 1000);
-          time = time.toLocaleDateString() + ' ' + time.toLocaleTimeString();
-
-      var timereceived = new Date(cache.transactions.log[i].timereceived * 1000);
-          timereceived = timereceived.toLocaleDateString() + ' ' + timereceived.toLocaleTimeString();
+    cache.transactions.log.forEach(function(tx) {
+      var blocktime = new Date(tx.blocktime);
+      var time = new Date(tx.time);
+      var timereceived = new Date(tx.timereceived);
 
       /**
        * Write row
        */
       tx_history_csv.write(
-        cache.transactions.log[i].account + ', ' +
-        cache.transactions.log[i].address + ', ' +
-        cache.transactions.log[i].category + ', ' +
-        cache.transactions.log[i].amount + ', ' +
-        cache.transactions.log[i].confirmations + ', ' +
-        cache.transactions.log[i].blockhash + ', ' +
-        cache.transactions.log[i].blockindex + ', ' +
-        blocktime + ', ' +
-        cache.transactions.log[i].txid + ', ' +
-        time + ', ' +
-        timereceived + '\n'
+        tx.account + ', ' +
+        tx.address + ', ' +
+        tx.category + ', ' +
+        tx.amount + ', ' +
+        tx.confirmations + ', ' +
+        tx.blockhash + ', ' +
+        tx.blockindex + ', ' +
+        blocktime.toLocaleDateString() + ' ' + blocktime.toLocaleTimeString() + ', ' +
+        tx.txid + ', ' +
+        time.toLocaleDateString() + ' ' + time.toLocaleTimeString() + ', ' +
+        timereceived.toLocaleDateString() + ' ' + timereceived.toLocaleTimeString() + '\n'
       );
-    }
+    });
 
     tx_history_csv.end();
     socket.emit('alerts', 'Transaction_history.csv successfuly dumped in your Vanilla WebUI directory.');
@@ -612,36 +604,34 @@ io.on('connection', function(socket) {
     var save = false;
 
     for (var i in cache.watch_addresses) {
-      promises.push(
-        new Promise(function(resolve, reject) {
-          (function(address) {
-            https.get('https://blockchain.vanillacoin.net/ext/getbalance/' + address, function(response) {
-              response.on('data', function(balance) {
-                /**
-                 * NaN is the only value that is treated as unequal to itself,
-                 * you can always test if a value is NaN by checking it for equality to itself
-                 */
-                if (!(parseFloat(balance.toString()) !== parseFloat(balance.toString()))) {
-                  var balance = JSON.parse(balance);
+      promises.push(new Promise(function(resolve, reject) {
+        (function(address) {
+          https.get('https://blockchain.vanillacoin.net/ext/getbalance/' + address, function(response) {
+            response.on('data', function(balance) {
+              /**
+               * NaN is the only value that is treated as unequal to itself,
+               * you can always test if a value is NaN by checking it for equality to itself
+               */
+              if (!(parseFloat(balance.toString()) !== parseFloat(balance.toString()))) {
+                var balance = JSON.parse(balance);
 
-                  if (balance.error) {
-                    balance = 0;
-                  }
-
-                  if (cache.watch_addresses[address].balance !== balance) {
-                    cache.watch_addresses[address].balance = balance;
-                    save = true;
-                  }
-
-                  return resolve(save);
+                if (balance.error) {
+                  balance = 0;
                 }
-              });
-            }).on('error', function(error) {
-              return reject('HTTPS https://blockchain.vanillacoin.net/ext/getbalance/' + address + ' ERROR\n\n' + error);
+
+                if (cache.watch_addresses[address].balance !== balance) {
+                  cache.watch_addresses[address].balance = balance;
+                  save = true;
+                }
+
+                return resolve(save);
+              }
             });
-          })(i);
-        })
-      );
+          }).on('error', function(error) {
+            return reject('HTTPS https://blockchain.vanillacoin.net/ext/getbalance/' + address + ' ERROR\n\n' + error);
+          });
+        })(i);
+      }));
     }
 
     Promise.all(promises).then(function AcceptHandler() {
@@ -760,23 +750,18 @@ io.on('connection', function(socket) {
         return;
       }
 
-      var byaddress = response[0].result;
-      var byaccount = response[1].result;
       var accounts = {};
 
       /**
        * Set accounts
        */
-      for (var i in byaccount) {
-        var hash = crypto.createHash('md5').update(byaccount[i].account).digest('hex');
-        var hidden = true;
-
-        /**
-         * Correctly label empty "" (default) account
-         */
-        if (!byaccount[i].account) {
-          byaccount[i].account = 'Default';
+      response[1].result.forEach(function(byaccount) {
+        if (!byaccount.account) {
+          byaccount.account = 'Default';
         }
+
+        var hash = crypto.createHash('md5').update(byaccount.account).digest('hex');
+        var hidden = true;
 
         /**
          * If hash is found in settings, set visibility accordingly
@@ -788,39 +773,36 @@ io.on('connection', function(socket) {
         /**
          * If there's no settings entry, display Default account addresses
          */
-        if (!cache.settings.hidden.hasOwnProperty(hash) && byaccount[i].account === 'Default') {
+        if (!cache.settings.hidden.hasOwnProperty(hash) && byaccount.account === 'Default') {
           hidden = false;
         }
 
         accounts[hash] = {
-          'account':byaccount[i].account,
+          'account':byaccount.account,
           'hidden':hidden,
-          'received':byaccount[i].amount,
+          'received':byaccount.amount,
           'addresses':[]
         };
 
         cache.settings.hidden[hash] = hidden;
-      }
+      });
 
       /**
        * Push addresses to accounts
        */
-      for (var i in byaddress) {
-        var hash = crypto.createHash('md5').update(byaddress[i].account).digest('hex');
-
-        /**
-         * Correctly label empty "" (default) account
-         */
-        if (!byaddress[i].account) {
-          byaddress[i].account = 'Default';
+      response[0].result.forEach(function(byaddress) {
+        if (!byaddress.account) {
+          byaddress.account = 'Default';
         }
 
+        var hash = crypto.createHash('md5').update(byaddress.account).digest('hex');
+
         accounts[hash].addresses.push({
-          'address':byaddress[i].address,
-          'received':byaddress[i].amount,
-          'confirmations':byaddress[i].confirmations
+          'address':byaddress.address,
+          'received':byaddress.amount,
+          'confirmations':byaddress.confirmations
         });
-      }
+      });
 
       cache.accounts = accounts;
       socket.emit('accounts', cache.accounts);
@@ -840,60 +822,55 @@ io.on('connection', function(socket) {
       var length_before = Object.keys(cache.transactions.edits).length;
       cache.transactions.log = [];
 
-      for (var i in response.result.transactions) {
-        /**
-         * Correctly label empty "" (default) account
-         */
-        if (!response.result.transactions[i].account) {
-          response.result.transactions[i].account = 'Default';
+      response.result.transactions.forEach(function(tx) {
+        if (!tx.account) {
+          tx.account = 'Default';
         }
+
+        /**
+         * Convert to miliseconds
+         */
+        tx.timereceived *= 1000;
+        tx.blocktime *= 1000;
+        tx.time *= 1000;
 
         /**
          * Check if txid exists in transactions_edits
          */
-        if (cache.transactions.edits[response.result.transactions[i].txid]) {
-          /**
-           * Category generate & immature
-           */
-          if (response.result.transactions[i].category === 'generate' || response.result.transactions[i].category === 'immature') {
-            if (cache.transactions.edits[response.result.transactions[i].txid].pos) {
-              response.result.transactions[i].pos = true;
-              response.result.transactions[i].address = cache.transactions.edits[response.result.transactions[i].txid].address;
-              response.result.transactions[i].amount = cache.transactions.edits[response.result.transactions[i].txid].amount;
+        if (cache.transactions.edits[tx.txid]) {
+          if (tx.category === 'generate' || tx.category === 'immature') {
+            if (cache.transactions.edits[tx.txid].pos) {
+              tx.pos = true;
+              tx.address = cache.transactions.edits[tx.txid].address;
+              tx.amount = cache.transactions.edits[tx.txid].amount;
 
-              if (response.result.transactions[i].category === 'generate') {
-                response.result.transactions[i].category = 'pos reward';
+              if (tx.category === 'generate') {
+                tx.category = 'pos reward';
               }
             } else {
-              response.result.transactions[i].pos = false;
+              tx.pos = false;
 
-              if (response.result.transactions[i].category === 'generate') {
-                response.result.transactions[i].category = 'incentive reward';
+              if (tx.category === 'generate') {
+                tx.category = 'incentive reward';
               }
             }
           }
 
-          /**
-           * Category receive
-           */
-          if (response.result.transactions[i].category === 'receive') {
-            if (cache.transactions.edits[response.result.transactions[i].txid]['self-send']) {
-              response.result.transactions[i].category = 'self-send';
+          if (tx.category === 'receive') {
+            if (cache.transactions.edits[tx.txid]['self-send']) {
+              tx.category = 'self-send';
             }
           }
 
           /**
            * Exclude sends to self, push everything else
            */
-          if (!(response.result.transactions[i].category === 'send' && cache.transactions.edits[response.result.transactions[i].txid]['self-send'])) {
-            cache.transactions.log.push(response.result.transactions[i]);
+          if (!(tx.category === 'send' && cache.transactions.edits[tx.txid]['self-send'])) {
+            cache.transactions.log.push(tx);
           }
         } else {
-          /**
-           * Category generate & immature
-           */
-          if (response.result.transactions[i].category === 'generate' || response.result.transactions[i].category === 'immature') {
-            rpc_gettransaction(response.result.transactions[i].txid, function(response, txid) {
+          if (tx.category === 'generate' || tx.category === 'immature') {
+            rpc_gettransaction(tx.txid, function(response, txid) {
               if (response.vout[0].scriptPubKey.type === 'nonstandard') {
                 if (response.amount < 0) {
                   response.amount = response.amount + response.details[0].amount;
@@ -912,13 +889,10 @@ io.on('connection', function(socket) {
             });
           }
 
-          /**
-           * Category send -> self-send
-           */
           var is_mine = false;
 
-          if (response.result.transactions[i].category === 'send') {
-            rpc_validateaddress(response.result.transactions[i].address, function(address, txid) {
+          if (tx.category === 'send') {
+            rpc_validateaddress(tx.address, function(address, txid) {
               if (address.ismine) {
                 is_mine = true;
 
@@ -926,17 +900,14 @@ io.on('connection', function(socket) {
                   'self-send':true
                 };
               }
-            }, response.result.transactions[i].txid);
+            }, tx.txid);
           }
 
-          /**
-           * Exclude sends to self, push everything else
-           */
           if (!is_mine) {
-            cache.transactions.log.push(response.result.transactions[i]);
+            cache.transactions.log.push(tx);
           }
         }
-      }
+      });
 
       setTimeout(function() {
         if (Object.keys(cache.transactions.edits).length > length_before) {
@@ -1012,15 +983,8 @@ io.on('connection', function(socket) {
         return;
       }
 
-      for (var i in response) {
-        for (var j in response[i].result) {
-          if (j === 'version') {
-            cache.wallet_info[j] = response[i].result[j].replace(':', ' ');
-          } else {
-            cache.wallet_info[j] = response[i].result[j];
-          }
-        }
-      }
+      cache.wallet_info = Object.assign({}, response[0].result, response[1].result);
+      cache.wallet_info.version = cache.wallet_info.version.replace(':', ' ');
 
       socket.emit('wallet_info', cache.wallet_info);
     });
@@ -1042,49 +1006,48 @@ io.on('connection', function(socket) {
         return;
       }
 
-      var getpeerinfo = response[0].result;
-      var getnetworkinfo = response[1].result;
       var endpoints = [];
       var save = false;
 
-      cache.wallet_info.udp_connections = getnetworkinfo.udp.connections;
+      cache.wallet_info.udp_connections = response[1].result.udp.connections;
 
-      for (var i in getpeerinfo) {
-        /**
-         * Add clean subver with '/' & ':' removed
-         */
-        if (getpeerinfo[i].subver) {
-          getpeerinfo[i].subver_clean = getpeerinfo[i].subver.replace('/', '').replace('/', '').replace(':',' ');
+      response[0].result.forEach(function(peer) {
+        peer.group = 'Connected nodes';
+
+        if (peer.subver) {
+          peer.subver_clean = peer.subver.replace('/', '').replace('/', '').replace(':',' ');
         } else {
-          getpeerinfo[i].subver_clean = 'No version response';
+          peer.subver_clean = 'N/A';
         }
 
-        getpeerinfo[i].group = 'Connected nodes';
+        /**
+         * Convert to miliseconds
+         */
+        peer.lastsend *= 1000;
+        peer.lastrecv *= 1000;
+        peer.conntime *= 1000;
 
         /**
          * Check if there's geodata on IP, else request it
          */
-        var ip = getpeerinfo[i].addr.split(':')[0];
+        var ip = peer.addr.split(':')[0];
 
         if (cache.nodes.geodata[ip]) {
-          getpeerinfo[i].lon = cache.nodes.geodata[ip].lon;
-          getpeerinfo[i].lat = cache.nodes.geodata[ip].lat;
-          getpeerinfo[i].country = cache.nodes.geodata[ip].country;
+          peer.lon = cache.nodes.geodata[ip].lon;
+          peer.lat = cache.nodes.geodata[ip].lat;
+          peer.country = cache.nodes.geodata[ip].country;
         } else {
           https_getlocation(ip);
           save = true;
         }
-      }
+      });
 
-      for (var i in getnetworkinfo.endpoints) {
-        /**
-         * Check if there's geodata on IP, else request it
-         */
-        var ip = getnetworkinfo.endpoints[i].split(':')[0];
+      response[1].result.endpoints.forEach(function(endpoint) {
+        var ip = endpoint.split(':')[0];
 
         if (cache.nodes.geodata[ip]) {
           endpoints.push({
-            'addr':getnetworkinfo.endpoints[i],
+            'addr':endpoint,
             'group':'Network endpoints',
             'lon':cache.nodes.geodata[ip].lon,
             'lat':cache.nodes.geodata[ip].lat,
@@ -1094,14 +1057,11 @@ io.on('connection', function(socket) {
           https_getlocation(ip);
           save = true;
         }
-      }
+      });
 
-      cache.nodes.connected = getpeerinfo;
+      cache.nodes.connected = response[0].result;
       cache.nodes.endpoints = endpoints;
 
-      /**
-       * Both connected nodes & endpoints arrays have the same properties, so we join them into one array used by the geomap
-       */
       socket.emit('nodes_geomap', cache.nodes.endpoints.concat(cache.nodes.connected));
       socket.emit('nodes_connected', cache.nodes.connected);
 
@@ -1126,87 +1086,83 @@ io.on('connection', function(socket) {
   (function update() {
     var promises = [];
 
-    promises.push(
-      new Promise(function(resolve, reject) {
-        var trades = [];
+    promises.push(new Promise(function(resolve, reject) {
+      var trades = [];
 
-        https.get('https://poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL', function(response) {
-          if (response.headers['content-type'] === 'application/json') {
-            var buffer = '';
+      https.get('https://poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL', function(response) {
+        if (response.headers['content-type'] === 'application/json') {
+          var buffer = '';
 
-            response.on('data', function(data) {
-              buffer += data;
-            });
+          response.on('data', function(data) {
+            buffer += data;
+          });
 
-            response.on('end', function() {
-              var trade_history = JSON.parse(buffer);
+          response.on('end', function() {
+            var trade_history = JSON.parse(buffer);
 
-              if (trade_history !== null) {
-                cache.currencies.vanilla.poloniex = parseFloat(trade_history[0].rate);
+            if (trade_history !== null) {
+              cache.currencies.vanilla.poloniex = parseFloat(trade_history[0].rate);
 
-                for (var i in trade_history) {
-                  trades.push({
-                    'exchange':'poloniex',
-                    'date':trade_history[i].date,
-                    'type':trade_history[i].type,
-                    'vanilla_rate':trade_history[i].rate,
-                    'vanilla_amount':trade_history[i].amount,
-                    'btc_total':trade_history[i].total
+              trade_history.forEach(function(trade) {
+                trades.push({
+                  'exchange':'poloniex',
+                  'date':trade.date,
+                  'type':trade.type,
+                  'vanilla_rate':trade.rate,
+                  'vanilla_amount':trade.amount,
+                  'btc_total':trade.total
+                });
+              });
+
+              return resolve(trades);
+            }
+          });
+        }
+      }).on('error', function(error) {
+        return reject('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL ERROR\n\n' + error);
+      });
+    }));
+
+    promises.push(new Promise(function(resolve, reject) {
+      var trades = [];
+
+      https.get('https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50', function(response) {
+        if (response.headers['content-type'] === 'application/json; charset=utf-8') {
+          var buffer = '';
+
+          response.on('data', function(data) {
+            buffer += data;
+          });
+
+          response.on('end', function() {
+            var trade_history = JSON.parse(buffer);
+
+            if (trade_history) {
+              if (trade_history.result) {
+                if (trade_history.result.length !== 0) {
+                  cache.currencies.vanilla.bittrex = parseFloat(trade_history.result[0].Price);
+
+                  trade_history.result.forEach(function(trade) {
+                    trades.push({
+                      'exchange':'bittrex',
+                      'date':trade.TimeStamp,
+                      'type':trade.OrderType,
+                      'vanilla_rate':trade.Price,
+                      'vanilla_amount':trade.Quantity,
+                      'btc_total':trade.Total
+                    });
                   });
-                }
 
-                return resolve(trades);
-              }
-            });
-          }
-        }).on('error', function(error) {
-          return reject('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL ERROR\n\n' + error);
-        });
-      })
-    );
-
-    promises.push(
-      new Promise(function(resolve, reject) {
-        var trades = [];
-
-        https.get('https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50', function(response) {
-          if (response.headers['content-type'] === 'application/json; charset=utf-8') {
-            var buffer = '';
-
-            response.on('data', function(data) {
-              buffer += data;
-            });
-
-            response.on('end', function() {
-              var trade_history = JSON.parse(buffer);
-
-              if (trade_history) {
-                if (trade_history.result) {
-                  if (trade_history.result.length !== 0) {
-                    cache.currencies.vanilla.bittrex = parseFloat(trade_history.result[0].Price);
-
-                    for (var i in trade_history.result) {
-                      trades.push({
-                        'exchange':'bittrex',
-                        'date':trade_history.result[i].TimeStamp,
-                        'type':trade_history.result[i].OrderType,
-                        'vanilla_rate':trade_history.result[i].Price,
-                        'vanilla_amount':trade_history.result[i].Quantity,
-                        'btc_total':trade_history.result[i].Total
-                      });
-                    }
-
-                    return resolve(trades);
-                  }
+                  return resolve(trades);
                 }
               }
-            });
-          }
-        }).on('error', function(error) {
-          return reject('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50 ERROR\n\n' + error);
-        });
-      })
-    );
+            }
+          });
+        }
+      }).on('error', function(error) {
+        return reject('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50 ERROR\n\n' + error);
+      });
+    }));
 
     Promise.all(promises).then(function AcceptHandler(trades) {
       var poloniex = trades[0];
