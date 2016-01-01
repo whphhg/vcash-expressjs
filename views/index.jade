@@ -882,10 +882,10 @@ block content
                         script.
                             socket.on('trades', function(trades) {
                                 $('#table_trade_history').empty();
-                                var html_table = $('<table id="trade_history" class="table table-striped table-hover"><thead><tr><th>Trades</th><th>Type</th><th>BTC/VNL</th><th>VNL</th><th>BTC</th></tr></thead></table>');
+                                var html_table = $('<table id="trade_history" class="table table-striped table-hover"><thead><tr><th></th><th>Date</th><th>Type</th><th>BTC/VNL</th><th>VNL</th><th>BTC</th></tr></thead></table>');
 
                                 for (var i in trades) {
-                                    html_table.append('<tr><td><img style="padding-bottom:2px" src="images/' + trades[i]['exchange'] +  '.png" /> ' + moment(trades[i]['date']).format('MM-DD HH:mm:ss') + '</td><td class="' + _.capitalize(trades[i]['type'].toLowerCase()) + '">' + _.capitalize(trades[i]['type'].toLowerCase()) + '</td><td class="text-right">' + parseFloat(trades[i]['vanilla_rate']).toFixed(8) + '</td><td class="text-right">' + parseFloat(trades[i]['vanilla_amount']).toFixed(8) + '</td><td class="text-right">' + parseFloat(trades[i]['btc_total']).toFixed(8) + '</td></tr>');
+                                    html_table.append('<tr><td><img style="padding-bottom:2px" src="images/' + trades[i]['exchange'] +  '.png" /></td><td>' + moment(trades[i]['date']).format('YYYY-MM-DD HH:mm:ss') + '</td><td class="' + _.capitalize(trades[i]['type'].toLowerCase()) + '">' + _.capitalize(trades[i]['type'].toLowerCase()) + '</td><td class="text-right">' + parseFloat(trades[i]['vanilla_rate']).toFixed(8) + '</td><td class="text-right">' + parseFloat(trades[i]['vanilla_amount']).toFixed(8) + '</td><td class="text-right">' + parseFloat(trades[i]['btc_total']).toFixed(8) + '</td></tr>');
                                 }
 
                                 $('#table_trade_history').append(html_table);
@@ -895,7 +895,7 @@ block content
                                     'info':false,
                                     'scrollY':'242px',
                                     'scrollCollapse':true,
-                                    'order':[[0,'desc']]
+                                    'order':[[0,'DESC']]
                                 });
                             });
 
