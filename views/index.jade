@@ -207,7 +207,7 @@ block content
              * Update conversion form LOCAL option with local currency & select current currency
              */
             $('#select_converting_currency option[value="LOCAL"]').text(currency['code']);
-            $('#select_local_currency option[value=' + currency['code'] + ']').prop('selected', true);
+            $('#select_local_currency').text(currency['code']);
         });
 
         /**
@@ -1384,57 +1384,6 @@ block content
                 .col-md-4
                     .row
                         .col-md-9
-                            h4 Set local currency
-                        .col-md-3
-                            form.navbar-form.navbar-left(id="form_toolbar")
-                                script.
-                                    /**
-                                     * Populate local currency dropdown selection menu
-                                     */
-                                    socket.on('exchange_rates', function(exchange_rates) {
-                                        /**
-                                         * If there are no exchange rates it means this is the first run, reload the page after 2 seconds
-                                         */
-                                        if (Object.keys(exchange_rates).length == 0) {
-                                            setTimeout(function() {
-                                                window.location.reload(true);
-                                            }, 2000);
-                                        }
-
-                                        var html_select = $('<select id="select_local_currency" class="text-center" />');
-
-                                        for (var i in exchange_rates) {
-                                            $('<option />', {value: i, text: i}).appendTo(html_select);
-                                        }
-
-                                        html_select.appendTo('#form_toolbar');
-
-                                        /**
-                                         * Emit new currency to server
-                                         */
-                                        $('#select_local_currency').change(function() {
-                                            socket.emit('currency_change', $('#select_local_currency').val());
-
-                                            /**
-                                             * Request responses again to update them with new currency info
-                                             */
-                                            socket.emit('cache_send', 'watch_addresses');
-                                            socket.emit('cache_send', 'accounts');
-                                            socket.emit('cache_send', 'transactions.log');
-
-                                            /**
-                                             * Hide conversion info on currency switch and clear input field
-                                             */
-                                            if (!$('#convert_currency').hasClass('hidden')) {
-                                                $("#convert_currency").toggleClass('hidden');
-                                            }
-
-                                            $('#input_convert_amount').val('');
-                                        });
-                                    });
-
-                    .row
-                        .col-md-9
                             h4 Dump transaction history
                         .col-md-3.text-right
                             input.btn.col-md-9(type='button', id='button_dump_transaction_history', value='Dump')
@@ -1558,14 +1507,62 @@ block content
 
     footer.footer
         .container-fluid
-            p.text-muted.text-center
-                b #[span#version] &nbsp;&nbsp; |
-                | &nbsp;&nbsp; Trading at 
-                b #[span#vnl_btc] BTC ~ #[span#vnl_local]&nbsp;&nbsp; |
-                | &nbsp;&nbsp; Market capitalization 
-                b #[span#vnl_local_marketcap] &nbsp;&nbsp; |
-                | &nbsp;&nbsp On block 
-                b #[span#blocks] &nbsp;&nbsp; |
-                | &nbsp;&nbsp; Connected to 
-                b #[span#connected_to_nodes] 
-                | nodes
+            .row
+                .col-md-2
+                    p.text-muted
+                        b #[span#version]
+                .col-md-8
+                    p.text-muted.text-center
+                        i.glyphicon.glyphicon-briefcase
+                        | &nbsp; Trading at 
+                        b #[span#vnl_btc] BTC ~ #[span#vnl_local] &nbsp;&nbsp;&nbsp;&nbsp;
+                        i.glyphicon.glyphicon-scale
+                        | &nbsp; Market capitalization 
+                        b #[span#vnl_local_marketcap] &nbsp;&nbsp;&nbsp;&nbsp;
+                        i.glyphicon.glyphicon-stop
+                        | &nbsp; On block 
+                        b #[span#blocks] &nbsp;&nbsp;&nbsp;&nbsp;
+                        i.glyphicon.glyphicon-link
+                        | &nbsp; Connected to 
+                        b #[span#connected_to_nodes] 
+                        | nodes
+                .col-md-2
+                    .btn-group.dropup.pull-right
+                        button(type='button', id='btn-footer-lc', class='btn btn-default dropdown-toggle', data-toggle='dropdown')
+                            #[span#select_local_currency]
+                        ul.dropdown-menu#select_currency
+                            script.
+                                socket.on('exchange_rates', function(exchange_rates) {
+                                    /**
+                                     * If there are no exchange rates it means this is the first run, reload the page after 2 seconds
+                                     */
+                                    if (Object.keys(exchange_rates).length == 0) {
+                                        setTimeout(function() {
+                                            window.location.reload(true);
+                                        }, 2000);
+                                    }
+
+                                    for (var i in exchange_rates) {
+                                        $('<li id="' + i + '"><a href="#">' + i + '</a></li>').appendTo('#select_currency');
+                                    }
+
+                                    $('ul#select_currency li').click(function(e) {
+                                        socket.emit('currency_change', $(this).text());
+
+                                        /**
+                                         * Request responses again to update them with new currency info
+                                         */
+                                        socket.emit('cache_send', 'watch_addresses');
+                                        socket.emit('cache_send', 'accounts');
+                                        socket.emit('cache_send', 'transactions.log');
+
+                                        /**
+                                         * Hide conversion info on currency switch and clear input field
+                                         */
+                                        if (!$('#convert_currency').hasClass('hidden')) {
+                                            $("#convert_currency").toggleClass('hidden');
+                                        }
+
+                                        $('#input_convert_amount').val('');
+                                    });
+                                });

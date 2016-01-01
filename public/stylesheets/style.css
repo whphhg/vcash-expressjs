@@ -60,6 +60,24 @@ select {
 .footer p {
   padding-top:10px;
 }
+.footer .btn {
+  padding:5px;
+  margin-top:5px;
+  background:#fdfcf8;
+}
+.footer .dropdown-menu {
+  min-width:0px;
+}
+.footer-local-currency {
+  min-width:350px;
+  padding-left:10px;
+  padding-right:10px;
+}
+#select_currency {
+  -webkit-column-count:4;
+  -moz-column-count:4;
+  column-count:4;
+}
 
 /**
  * Navbar
