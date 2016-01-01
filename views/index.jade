@@ -587,7 +587,7 @@ block content
 
                             li#view-maintenance-li
                                 a(href="#", data-toggle="tooltip", data-placement="bottom", title="Settings & maintenance")
-                                    i.glyphicon.glyphicon-wrench
+                                    i.glyphicon.glyphicon-cog
                                 script.
                                     $('[data-toggle="tooltip"]').tooltip();
 
@@ -1381,129 +1381,169 @@ block content
 
         #view-maintenance.hidden
             .row
-                .col-md-4
+                .col-md-6
                     .row
-                        .col-md-9
-                            h4 Dump transaction history
-                        .col-md-3.text-right
-                            input.btn.col-md-9(type='button', id='button_dump_transaction_history', value='Dump')
-                            script.
-                                $('#button_dump_transaction_history').click(function() {
-                                    socket.emit('dumptxhistory', true);
-                                });
+                        .col-md-12
+                            .panel.panel-default
+                                .panel-heading
+                                    p.nopadding
+                                        i.glyphicon.glyphicon-piggy-bank &nbsp;
+                                        | Change passphrase
+                                .panel-body
+                                    p Change your wallet passphrase.
 
-                    .row
-                        .col-md-9
-                            h4 Backup wallet
-                        .col-md-3.text-right
-                            input.btn.col-md-9(type='button', id='button_backup_wallet', value='Backup')
-                            script.
-                                $('#button_backup_wallet').click(function() {
-                                    socket.emit('backupwallet', true);
-                                });
+                                    form(id="form_wallet_passphrase_change")
+                                        input.col-md-7(id="input_old_passphrase", type="password", placeholder="Old passphrase")
+                                        input.col-md-7(id="input_new_passphrase", type="password", placeholder="New passphrase")
+                                        input.col-md-4.btn.pull-right(type="submit", id="button_wallet_passphrase_change", value="Change passphrase")
+                                    script.
+                                        /**
+                                         * Disable the button until inputs are filled
+                                         */
+                                        $('#button_wallet_passphrase_change').prop('disabled', true);
+                                        $('#form_wallet_passphrase_change input').keyup(function() {
+                                            var inputs_empty = false;
 
-                    .row
-                        .col-md-9
-                            h4 Check wallet for inconsistencies
-                        .col-md-3.text-right
-                            input.btn.col-md-9(type='button', id='button_check_wallet', value='Check')
-                            script.
-                                $('#button_check_wallet').click(function() {
-                                    socket.emit('checkwallet', true);
-                                    socket.on('checkwallet_response', function(obj) {
-                                        $('#check_wallet_response').empty();
+                                            $('#form_wallet_passphrase_change input').each(function() {
+                                                if ($(this).val().length == 0) {
+                                                    inputs_empty = true;
+                                                }
+                                            });
 
-                                        for (var key in obj) {
-                                            $('#check_wallet_response').append('<p>' + key + ': ' + obj[key] + '</p>');
-                                        }
-                                    });
-                                });
+                                            if (inputs_empty) {
+                                                $('#button_wallet_passphrase_change').prop('disabled', true);
+                                            } else {
+                                                $('#button_wallet_passphrase_change').prop('disabled', false);
+                                            }
+                                        });
 
-                    .row#check_wallet_response
-                    .row
-                        .col-md-9
-                            h4 Repair wallet if an inconsistency is found
-                        .col-md-3.text-right
-                            input.btn.col-md-9(type='button', id='button_repair_wallet', value='Repair')
-                            script.
-                                $('#button_repair_wallet').click(function() {
-                                    socket.emit('repairwallet', true);
-                                    socket.on('repairwallet_response', function(obj) {
-                                        $('#repair_wallet_response').empty();
+                                        $('#form_wallet_passphrase_change').on('submit', function(e) {
+                                            e.preventDefault();
 
-                                        for (var key in obj) {
-                                            $('#repair_wallet_response').append('<p>' + key + ': ' + obj[key] + '</p>');
-                                        }
-                                    });
-                                });
+                                            /**
+                                             * Call RPC method walletpassphrasechange on the server
+                                             */
+                                            socket.emit('walletpassphrasechange', {'old':$('#input_old_passphrase').val(), 'new':$('#input_new_passphrase').val()});
+                                        });
 
-                    .row#repair_wallet_response
-                .col-md-7.col-md-offset-1
-                    form(id="form_wallet_passphrase_change")
-                        input.col-md-4(id="input_old_passphrase", type="password", placeholder="Old passphrase")
-                        input.col-md-5(id="input_new_passphrase", type="password", placeholder="New passphrase")
-                        input.col-md-2.btn.btn-m-l(type="submit", id="button_wallet_passphrase_change", value="Change")
-                    script.
-                        /**
-                         * Disable the button until inputs are filled
-                         */
-                        $('#button_wallet_passphrase_change').prop('disabled', true);
-                        $('#form_wallet_passphrase_change input').keyup(function() {
-                            var inputs_empty = false;
+                            .panel.panel-default
+                                .panel-heading
+                                    p.nopadding
+                                        i.glyphicon.glyphicon-folder-open &nbsp;
+                                        | Dump private keys
+                                .panel-body
+                                    p Dump individual private key or dump your whole wallet to a comma-separated values (CSV) file inside of your Vanilla data directory.
 
-                            $('#form_wallet_passphrase_change input').each(function() {
-                                if ($(this).val().length == 0) {
-                                    inputs_empty = true;
-                                }
-                            });
+                                    form(id="form_dump_private_key")
+                                        input.col-md-5(id="input_dump_private_key", type="text", placeholder="Valid public key from this wallet")
+                                        input.col-md-3.btn.btn-m-l(type="submit", id="button_dump_private_key", value="Dump private key")
+                                        input.col-md-3.btn.pull-right(type="button", id="button_dump_wallet", value="Dump wallet")
+                                    script.
+                                        /**
+                                         * Disable the button until input is filled
+                                         */
+                                        $('#button_dump_private_key').prop('disabled', true);
+                                        $('#input_dump_private_key').keyup(function() {
+                                            $('#button_dump_private_key').prop('disabled', this.value == "" ? true : false);
+                                        });
 
-                            if (inputs_empty) {
-                                $('#button_wallet_passphrase_change').prop('disabled', true);
-                            } else {
-                                $('#button_wallet_passphrase_change').prop('disabled', false);
-                            }
-                        });
+                                        /**
+                                         * Allow only backspace, delete, left arrow, right arrow, enter, 1-9 a-zA-Z, numpad 1-9
+                                         */
+                                        $("#input_dump_private_key").keydown(function(e) {
+                                            if (!(e.keyCode == 46 || e.keyCode == 8 || e.keyCode == 37 || e.keyCode == 39 || e.keyCode == 13 || (e.keyCode >= 49 && e.keyCode <= 90) || (e.keyCode >= 97 && e.keyCode <= 105))) {
+                                                e.preventDefault();
+                                            }
+                                        });
 
-                        $('#form_wallet_passphrase_change').on('submit', function(e) {
-                            e.preventDefault();
+                                        $('#form_dump_private_key').on('submit', function(e) {
+                                            e.preventDefault();
+                                            socket.emit('dumpprivkey', $('#input_dump_private_key').val());
+                                        });
 
-                            /**
-                             * Call RPC method walletpassphrasechange on the server
-                             */
-                            socket.emit('walletpassphrasechange', {'old':$('#input_old_passphrase').val(), 'new':$('#input_new_passphrase').val()});
-                            //socket.emit('walletpassphrasechange', [$('#input_old_passphrase').val(), $('#input_new_passphrase').val()]);
-                        });
+                                        $('#button_dump_wallet').click(function() {
+                                            socket.emit('dumpwallet', true);
+                                        });
 
-                    form(id="form_dump_private_key")
-                        input.col-md-5(id="input_dump_private_key", type="text", placeholder="Valid public key from this wallet")
-                        input.col-md-2.btn.btn-m-l(type="submit", id="button_dump_private_key", value="Dump private key")
-                        input.col-md-2.btn.btn-m-l(type="button", id="button_dump_wallet", value="Dump wallet")
-                    script.
-                        /**
-                         * Disable the button until input is filled
-                         */
-                        $('#button_dump_private_key').prop('disabled', true);
-                        $('#input_dump_private_key').keyup(function() {
-                            $('#button_dump_private_key').prop('disabled', this.value == "" ? true : false);
-                        });
+                .col-md-4.col-md-offset-2
+                    .row.pull-right
+                        .col-md-12
+                            .panel.panel-default
+                                .panel-heading
+                                    p.nopadding
+                                        i.glyphicon.glyphicon-file &nbsp;
+                                        | Export transaction history
+                                .panel-body
+                                    p Exports your transaction history to a comma-separated values (CSV) file inside of your WebUI directory.
 
-                        /**
-                         * Allow only backspace, delete, left arrow, right arrow, enter, 1-9 a-zA-Z, numpad 1-9
-                         */
-                        $("#input_dump_private_key").keydown(function(e) {
-                            if (!(e.keyCode == 46 || e.keyCode == 8 || e.keyCode == 37 || e.keyCode == 39 || e.keyCode == 13 || (e.keyCode >= 49 && e.keyCode <= 90) || (e.keyCode >= 97 && e.keyCode <= 105))) {
-                                e.preventDefault();
-                            }
-                        });
+                                    input.btn.col-md-12(type='button', id='button_dump_transaction_history', value='Export')
+                                    script.
+                                        $('#button_dump_transaction_history').click(function() {
+                                            socket.emit('dumptxhistory', true);
+                                        });
 
-                        $('#form_dump_private_key').on('submit', function(e) {
-                            e.preventDefault();
-                            socket.emit('dumpprivkey', $('#input_dump_private_key').val());
-                        });
+                        .col-md-12
+                            .panel.panel-default
+                                .panel-heading
+                                    p.nopadding
+                                        i.glyphicon.glyphicon-download-alt &nbsp;
+                                        | Backup wallet
+                                .panel-body
+                                    p Backups your wallet to a timestamped .dat file inside of your Vanilla executable directory.
 
-                        $('#button_dump_wallet').click(function() {
-                            socket.emit('dumpwallet', true);
-                        });
+                                    input.btn.col-md-12(type='button', id='button_backup_wallet', value='Backup')
+                                    script.
+                                        $('#button_backup_wallet').click(function() {
+                                            socket.emit('backupwallet', true);
+                                        });
+
+                        .col-md-12
+                            .panel.panel-default
+                                .panel-heading
+                                    p.nopadding
+                                        i.glyphicon.glyphicon-zoom-in &nbsp;
+                                        | Check wallet
+                                .panel-body
+                                    p Checks the wallet for inconsistencies and reports them below.
+                                    #check_wallet_response
+
+                                    input.btn.col-md-12(type='button', id='button_check_wallet', value='Check')
+                                    script.
+                                        $('#button_check_wallet').click(function() {
+                                            socket.emit('checkwallet', true);
+                                            socket.on('checkwallet_response', function(obj) {
+                                                $('#check_wallet_response').empty();
+
+                                                for (var key in obj) {
+                                                    $('#check_wallet_response').append('<p class="nopadding">' + key + ': ' + obj[key] + '</p>');
+                                                }
+                                            });
+                                        });
+
+                        .col-md-12
+                            .panel.panel-default
+                                .panel-heading
+                                    p.nopadding
+                                        i.glyphicon.glyphicon-wrench &nbsp;
+                                        | Repair wallet
+                                .panel-body
+                                    p Repairs the wallet if an inconsistency is found and shows report below.
+                                    #repair_wallet_response
+
+                                    input.btn.col-md-12(type='button', id='button_repair_wallet', value='Repair')
+                                    script.
+                                        $('#button_repair_wallet').click(function() {
+                                            socket.emit('repairwallet', true);
+                                            socket.on('repairwallet_response', function(obj) {
+                                                $('#repair_wallet_response').empty();
+
+                                                for (var key in obj) {
+                                                    $('#repair_wallet_response').append('<p class="nopadding">' + key + ': ' + obj[key] + '</p>');
+                                                }
+                                            });
+                                        });
+
+
 
     footer.footer
         .container-fluid
@@ -1528,7 +1568,7 @@ block content
                         | nodes
                 .col-md-2
                     .btn-group.dropup.pull-right
-                        button(type='button', id='btn-footer-lc', class='btn btn-default dropdown-toggle', data-toggle='dropdown')
+                        button(type='button', class='btn btn-default dropdown-toggle', data-toggle='dropdown').
                             #[span#select_local_currency]
                         ul.dropdown-menu#select_currency
                             script.

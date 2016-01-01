@@ -31,7 +31,7 @@ npm start
 ![Alt](http://i.imgur.com/MbjMdm3.jpg)
 
 **Maintenance**
-![Alt](http://i.imgur.com/MuMEZLL.png)
+![Alt](http://i.imgur.com/NQacsDM.png)
 
 Donations welcome at
 ```

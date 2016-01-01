@@ -468,7 +468,7 @@ io.on('connection', function(socket) {
     });
 
     tx_history_csv.end();
-    socket.emit('alerts', 'Transaction_history.csv successfuly dumped in your Vanilla WebUI directory.');
+    socket.emit('alerts', 'Transaction_history.csv successfuly dumped inside of your Vanilla WebUI directory.');
   });
 
   /**
@@ -489,7 +489,7 @@ io.on('connection', function(socket) {
           socket.emit('alerts', 'Backup failed.');
         }
       } else {
-        socket.emit('alerts', 'Wallet successfuly backed up in your vanillacoind directory.');
+        socket.emit('alerts', 'Wallet successfuly backed up inside of your Vanilla executable directory.');
       }
     });
   });
