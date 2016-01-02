@@ -161,7 +161,7 @@ io.on('connection', function(socket) {
   /**
    * Update client with available currencies (for local currency select) & selected currency info
    */
-  if (cache.currencies.local.date) {
+  if (cache.currencies.local.date !== '') {
     socket.emit('exchange_rates', cache.currencies.local.rates);
     socket.emit('currency_info', {
       'code':cache.settings.local_currency,
@@ -1010,14 +1010,13 @@ io.on('connection', function(socket) {
 
       cache.wallet_info.udp_connections = response[1].result.udp.connections;
 
-      response[0].result.forEach(function(peer) {
-        peer.group = 'Connected nodes';
+      var connected_nodes = response[0].result.filter(function(peer) {
+        return parseInt(peer.lastsend) !== 0;
+      });
 
-        if (peer.subver) {
-          peer.subver_clean = peer.subver.replace('/', '').replace('/', '').replace(':',' ');
-        } else {
-          peer.subver_clean = 'N/A';
-        }
+      connected_nodes.forEach(function(peer) {
+        peer.group = 'Connected nodes';
+        peer.subver_clean = peer.subver.replace('/', '').replace('/', '').replace(':',' ');
 
         /**
          * Convert to miliseconds
@@ -1058,7 +1057,7 @@ io.on('connection', function(socket) {
         }
       });
 
-      cache.nodes.connected = response[0].result;
+      cache.nodes.connected = connected_nodes;
       cache.nodes.endpoints = endpoints;
 
       socket.emit('nodes_geomap', cache.nodes.endpoints.concat(cache.nodes.connected));
