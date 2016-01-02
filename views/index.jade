@@ -895,7 +895,7 @@ block content
                                     'info':false,
                                     'scrollY':'242px',
                                     'scrollCollapse':true,
-                                    'order':[[0,'DESC']]
+                                    'order':[[1,'DESC']]
                                 });
                             });
 
@@ -1189,10 +1189,17 @@ block content
                                 /**
                                  * Calculate PoW reward (from https://github.com/john-connor/vanillacoin/blob/master/src/reward.cpp)
                                  */
-                                subsidy = 128;
+                                var subsidy = 128;
 
-                                for (i = 50000; i <= future_block; i += 50000) {
-                                    subsidy -= subsidy / 6;
+                                if (future_block < 325000) {
+                                    for (i = 50000; i <= future_block; i += 50000) {
+                                        subsidy -= subsidy / 6;
+                                    }
+                                } else {
+                                    for (i = 10000; i <= future_block; i += 10000) {
+                                        subsidy -= subsidy / 28 - (10000 / future_block) * (10000 / future_block);
+                                        subsidy -= (subsidy / 28 * 4) / 28;
+                                    }
                                 }
 
                                 /**
@@ -1349,7 +1356,7 @@ block content
                     socket.on('nodes_connected', function(obj) {
                         $('#table_getpeerinfo').empty();
 
-                        var html_table = $('<table id="neighbouring_nodes_table" class="table table-striped table-hover"><thead><tr><th>Neighbouring peers</th><th>Country</th><th>Last sent</th><th>Last received</th><th>Established</th><th>Protocol</th><th>Version</th><th>Inbound</th><th>Starting height</th><th>Ban score</th></tr></thead></table>');
+                        var html_table = $('<table id="neighbouring_nodes_table" class="table table-striped table-hover"><thead><tr><th><i class="glyphicon glyphicon-user" /> Neighbouring peers</th><th>Country</th><th>Last sent</th><th>Last received</th><th>Established</th><th>Protocol</th><th>Version</th><th>Inbound</th><th>Starting height</th><th>Ban score</th></tr></thead></table>');
 
                         for (key in obj) {
                             /**
@@ -1369,15 +1376,13 @@ block content
                             'searching':false,
                             'paging':false,
                             'info':false,
-                            'scrollY':'168px',
-                            'scrollCollapse':true,
                             'order':[[6,'desc']]
                         });
                     });
 
             .row.m-tb-10
                 .col-md-12
-                    .placeholder #[span#table_getpeerinfo]
+                    #table_getpeerinfo
 
         #view-maintenance.hidden
             .row

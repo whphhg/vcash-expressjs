@@ -418,9 +418,8 @@ io.on('connection', function(socket) {
         break;
       }
 
-      if (i === cache.incentive_rewards.length - 1) {
+      if (parseInt(i) === cache.incentive_rewards.length - 1) {
         socket.emit('incentive_reward_response', cache.incentive_rewards[i].reward_percent);
-        break;
       }
     }
   });
