@@ -1151,7 +1151,7 @@ block content
                                     | from the Vanilla wiki.
             .row
                 .col-md-2
-                    input.col-md-12(id="input_estimate_blocktime", type="text", maxlength="6", placeholder="Estimate future block time")
+                    input.col-md-12(id="input_estimate_blocktime", type="text", maxlength="7", placeholder="Estimate future block time")
                 .col-md-10#blocktime_estimation
                     b #[span#future_block_already_submitted]
                     #estimate_blocktime.hidden
@@ -1173,7 +1173,7 @@ block content
                         $('#estimate_blocktime').addClass('hidden');
                         $('#future_block_already_submitted').empty();
 
-                        if ($('#input_estimate_blocktime').val().length == 6) {
+                        if ($('#input_estimate_blocktime').val().length >= 6) {
                             var time_per_block = 111;
                             var future_block = parseInt($('#input_estimate_blocktime').val());
                             var estimate = new Date();
@@ -1200,6 +1200,10 @@ block content
                                         subsidy -= subsidy / 28 - (10000 / future_block) * (10000 / future_block);
                                         subsidy -= (subsidy / 28 * 4) / 28;
                                     }
+                                }
+
+                                if (subsidy < 2) {
+                                    subsidy = 2;
                                 }
 
                                 /**
