@@ -51,6 +51,7 @@ var rpc = require('node-json-rpc');
 var cache = {
   'settings':{
     'local_currency':'EUR',
+    'stylesheet':'default',
     'hidden':{}
   },
   'wallet_info':{
@@ -159,6 +160,23 @@ for (var filename in data_files) {
  */
 io.on('connection', function(socket) {
   /**
+   * Emit stylesheets
+   */
+  fs.readdir('public/stylesheets', function(error, files) {
+    if (error) {
+      console.log('FS.READDIR public/stylesheets ERROR\n\n', error);
+      return;
+    }
+
+    if (!cache.settings.stylesheet) {
+      cache.settings.stylesheet = 'default';
+    }
+
+    socket.emit('stylesheet', cache.settings.stylesheet);
+    socket.emit('stylesheets', files);
+  });
+
+  /**
    * Update client with available currencies (for local currency select) & selected currency info
    */
   if (cache.currencies.local.date !== '') {
@@ -179,6 +197,20 @@ io.on('connection', function(socket) {
     fs.writeFile('data/settings.json', JSON.stringify(cache.settings, null, 2), function(error) {
       if (error) {
         console.log('FS.WRITE data/settings.json (settings_hidden_set) ERROR\n\n', error);
+        return;
+      }
+    });
+  });
+
+  /**
+   * Settings, set stylesheet
+   */
+  socket.on('settings_stylesheet_set', function(stylesheet) {
+    cache.settings.stylesheet = stylesheet;
+
+    fs.writeFile('data/settings.json', JSON.stringify(cache.settings, null, 2), function(error) {
+      if (error) {
+        console.log('FS.WRITE data/settings.json (settings_stylesheet_set) ERROR\n\n', error);
         return;
       }
     });
