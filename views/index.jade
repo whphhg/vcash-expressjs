@@ -749,7 +749,7 @@ block content
                       hidden = true;
                     }
 
-                    socket.emit('settings_hidden_set', {'hash':hash, 'hidden':hidden});
+                    socket.emit('settings_set', {'property':'hidden', 'value':hidden, 'hash':hash});
                     accounts_tables[hash].columns.adjust();
                   });
                 });
@@ -856,7 +856,7 @@ block content
                       hidden = true;
                     }
 
-                    socket.emit('settings_hidden_set', {'hash':'watchonly', 'hidden':hidden});
+                    socket.emit('settings_set', {'property':'hidden', 'value':hidden, 'hash':'watchonly'});
                     watchlist_table.columns.adjust();
                   });
 
@@ -1612,7 +1612,7 @@ block content
                   }
 
                   $('ul#select_currency li').click(function(e) {
-                    socket.emit('currency_change', $(this).text());
+                    socket.emit('settings_set', {'property':'local_currency', 'value':$(this).text()});
 
                     /**
                      * Request responses again to update them with new currency info
@@ -1643,7 +1643,7 @@ block content
                   });
 
                   $('ul#select_stylesheet li').click(function(e) {
-                    socket.emit('settings_stylesheet_set', $(this).text().toLowerCase());
+                    socket.emit('settings_set', {'property':'stylesheet', 'value':$(this).text().toLowerCase()});
 
                     $('head link#theme').attr('href', '/stylesheets/' + $(this).text().toLowerCase() + '.css');
                   });

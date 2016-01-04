@@ -39,10 +39,10 @@ var io = require('socket.io').listen(server.listen(20123));
  */
 var rpc = require('node-json-rpc');
     rpc = new rpc.Client({
-      'port':9195,
-      'host':'127.0.0.1',
-      'path':'/',
-      'strict':true
+      port:9195,
+      host:'127.0.0.1',
+      path:'/',
+      strict:true
     });
 
 /**
@@ -69,6 +69,7 @@ var cache = {
       'rates':{}
     }
   },
+  'stylesheets':[],
   'accounts':{},
   'watch_addresses':{},
   'trades':[],
@@ -122,24 +123,24 @@ if (!fs.existsSync('data')) {
 }
 
 /**
- * Read existing data files
+ * Read data files
  */
 for (var filename in data_files) {
   (function(filename, properties) {
-    fs.stat('data/' + filename + '.json', function(error, stats) { 
-      if (error) {
+    fs.stat('data/' + filename + '.json', function(err, stats) { 
+      if (err) {
         /**
          * ENOENT = no such file / dir
          */
-        if (error.code !== 'ENOENT') {
-          console.log('FS data/' + filename + '.json ERROR\n\n', error);
+        if (err.code !== 'ENOENT') {
+          console.log('FS.STAT data/' + filename + '.json ERROR\n\n', err);
           return;
         }
       } else {
         if (stats.size !== 0) {
-          fs.readFile('data/' + filename + '.json', function(error, data) {
-            if (error) {
-              console.log('FS.READ data/' + filename + '.json ERROR\n\n', error);
+          fs.readFile('data/' + filename + '.json', function(err, data) {
+            if (err) {
+              console.log('FS.READ data/' + filename + '.json ERROR\n\n', err);
               return;
             }
 
@@ -156,61 +157,49 @@ for (var filename in data_files) {
 }
 
 /**
+ * Update stylesheets array
+ */
+fs.readdir('public/stylesheets', function(err, files) {
+  if (err) {
+    console.log('FS.READDIR public/stylesheets ERROR\n\n', err);
+    return;
+  }
+
+  if (!cache.settings.stylesheet) {
+    cache.settings.stylesheet = 'default';
+  }
+
+  cache.stylesheets = files;
+});
+
+/**
  * On socket connection
  */
 io.on('connection', function(socket) {
   /**
-   * Emit stylesheets
+   * Update settings
    */
-  fs.readdir('public/stylesheets', function(error, files) {
-    if (error) {
-      console.log('FS.READDIR public/stylesheets ERROR\n\n', error);
-      return;
+  socket.on('settings_set', function(set) {
+    switch (set.property) {
+      case 'hidden':
+        cache.settings.hidden[set.hash] = set.value;
+        break;
+      case 'local_currency':
+        cache.settings.local_currency = set.value;
+        socket.emit('currency_info', {
+          'code':cache.settings.local_currency,
+          'btc':cache.currencies.local.rates[cache.settings.local_currency].btc,
+          'vanilla_average':cache.currencies.vanilla.average
+        });
+        break;
+      default:
+        cache.settings[set.property] = set.value;
+        break;
     }
-
-    if (!cache.settings.stylesheet) {
-      cache.settings.stylesheet = 'default';
-    }
-
-    socket.emit('stylesheet', cache.settings.stylesheet);
-    socket.emit('stylesheets', files);
-  });
-
-  /**
-   * Update client with available currencies (for local currency select) & selected currency info
-   */
-  if (cache.currencies.local.date !== '') {
-    socket.emit('exchange_rates', cache.currencies.local.rates);
-    socket.emit('currency_info', {
-      'code':cache.settings.local_currency,
-      'btc':cache.currencies.local.rates[cache.settings.local_currency].btc,
-      'vanilla_average':cache.currencies.vanilla.average
-    });
-  }
-
-  /**
-  * Settings, set visibility of table with provided hash
-  */
-  socket.on('settings_hidden_set', function(table) {
-    cache.settings.hidden[table.hash] = table.hidden;
 
     fs.writeFile('data/settings.json', JSON.stringify(cache.settings, null, 2), function(error) {
       if (error) {
-        console.log('FS.WRITE data/settings.json (settings_hidden_set) ERROR\n\n', error);
-        return;
-      }
-    });
-  });
-
-  /**
-   * Settings, set stylesheet
-   */
-  socket.on('settings_stylesheet_set', function(stylesheet) {
-    cache.settings.stylesheet = stylesheet;
-
-    fs.writeFile('data/settings.json', JSON.stringify(cache.settings, null, 2), function(error) {
-      if (error) {
-        console.log('FS.WRITE data/settings.json (settings_stylesheet_set) ERROR\n\n', error);
+        console.log('FS.WRITE data/settings.json (settings_set) ERROR\n\n', error);
         return;
       }
     });
@@ -259,26 +248,6 @@ io.on('connection', function(socket) {
       }
 
       rpc_walletpassphrase();
-    });
-  });
-
-  /**
-   * Update client and config with provided local currency
-   */
-  socket.on('currency_change', function(currency) {
-    cache.settings.local_currency = currency;
-
-    socket.emit('currency_info', {
-      'code':cache.settings.local_currency,
-      'btc':cache.currencies.local.rates[cache.settings.local_currency].btc,
-      'vanilla_average':cache.currencies.vanilla.average
-    });
-
-    fs.writeFile('data/settings.json', JSON.stringify(cache.settings, null, 2), function(error) {
-      if (error) {
-        console.log('FS.WRITE data/settings.json (currency_change) ERROR\n\n', error);
-        return;
-      }
     });
   });
 
@@ -952,6 +921,21 @@ io.on('connection', function(socket) {
       }, 1000);
 
       socket.emit('transactions', cache.transactions.log);
+    });
+  }
+
+  /**
+   * Update client with stylesheets, available currencies (for local currency select) & selected currency info
+   */
+  socket.emit('stylesheet', cache.settings.stylesheet);
+  socket.emit('stylesheets', cache.stylesheets);
+
+  if (cache.currencies.local.date !== '') {
+    socket.emit('exchange_rates', cache.currencies.local.rates);
+    socket.emit('currency_info', {
+      'code':cache.settings.local_currency,
+      'btc':cache.currencies.local.rates[cache.settings.local_currency].btc,
+      'vanilla_average':cache.currencies.vanilla.average
     });
   }
 

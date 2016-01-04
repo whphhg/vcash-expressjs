@@ -1,10 +1,12 @@
 # A (unofficial) Node.js WebUI for the Vanilla wallet
 
-WebUI requires the following software to be installed:
-- Latest version of Node.js
-- Python 2 or 3
+Works on Linux, Windows and OS X.
 
-Works on Linux, Windows and Macintosh.
+The following software is required to be installed
+```
+Latest version of Node.js
+Python 2 or 3
+```
 
 **Warning**: Please backup your existing wallet files (~/.Vanillacoin/data/) folder. I take no responsibilty if you break something.
 
