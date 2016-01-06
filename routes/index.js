@@ -173,11 +173,54 @@ fs.readdir('public/stylesheets', function(err, files) {
 });
 
 /**
+ * Get foreign exchange rates published by the European Central Bank (base USD)
+ */
+https.get('https://api.fixer.io/latest?base=USD', function(response) {
+  if (response.headers['content-type'] === 'application/json') {
+    var buffer = '';
+
+    response.on('data', function(data) {
+      buffer += data;
+    });
+
+    response.on('end', function() {
+      var exchange_rates = JSON.parse(buffer);
+
+      if (exchange_rates.hasOwnProperty('date') && exchange_rates.hasOwnProperty('base') && exchange_rates.hasOwnProperty('rates')) {
+        /**
+         * Check if response is newer
+         */
+        if (exchange_rates.date !== cache.currencies.local.date) {
+          cache.currencies.local.date = exchange_rates.date;
+          cache.currencies.local.base = exchange_rates.base;
+
+          for (var i in exchange_rates.rates) {
+            cache.currencies.local.rates[i] = {
+              'rate':exchange_rates.rates[i]
+            };
+          }
+
+          /**
+           * Because USD is used as base set its rate to 1
+           */
+          cache.currencies.local.rates.USD = {
+            'rate':1
+          };
+        }
+      }
+    });
+  }
+}).on('error', function(error) {
+  console.log('HTTPS api.fixer.io/latest?base=USD ERROR\n\n', error);
+  return;
+});
+
+/**
  * On socket connection
  */
 io.on('connection', function(socket) {
   /**
-   * Update settings
+   * Set settings
    */
   socket.on('settings_set', function(set) {
     switch (set.property) {
@@ -265,6 +308,8 @@ io.on('connection', function(socket) {
           'hidden':cache.settings.hidden.watchonly,
           'addresses':cache.watch_addresses
         });
+      } else if (properties === 'nodes.connected') {
+        socket.emit('nodes_connected', cache.connected);
       } else {
         socket.emit(properties[0], cache[properties[0]]);
       }
@@ -383,6 +428,7 @@ io.on('connection', function(socket) {
         }
       } else {
         socket.emit('alerts', 'Private key successfully imported.');
+        socket.emit('importprivkey_response', true);
         rpc_listreceivedby();
       }
     });
@@ -721,10 +767,7 @@ io.on('connection', function(socket) {
 
   /**
    * RPC method 'walletpassphrase'
-   * Used on client to update wallet state (locked / unlocked / unencrypted) using provided error code
    */
-  rpc_walletpassphrase();
-
   function rpc_walletpassphrase() {
     rpc.call({'jsonrpc':'2.0', 'method':'walletpassphrase', 'params':[], 'id':0}, function(error, response) {
       if (error || !response) {
@@ -924,291 +967,246 @@ io.on('connection', function(socket) {
     });
   }
 
-  /**
-   * Update client with stylesheets, available currencies (for local currency select) & selected currency info
-   */
-  socket.emit('stylesheet', cache.settings.stylesheet);
-  socket.emit('stylesheets', cache.stylesheets);
+  setTimeout(function() {
+    /**
+     * Update client with error.code for wallet state (locked / unlocked / unencrypted)
+     */
+    rpc_walletpassphrase();
 
-  if (cache.currencies.local.date !== '') {
-    socket.emit('exchange_rates', cache.currencies.local.rates);
+    /**
+     * Update client with stylesheets, available currencies (for local currency select) & selected currency info
+     */
+    socket.emit('stylesheet', cache.settings.stylesheet);
+    socket.emit('stylesheets', cache.stylesheets);
+    socket.emit('local_currencies', cache.currencies.local.rates);
     socket.emit('currency_info', {
       'code':cache.settings.local_currency,
       'btc':cache.currencies.local.rates[cache.settings.local_currency].btc,
       'vanilla_average':cache.currencies.vanilla.average
     });
-  }
 
-  /**
-   * Get foreign exchange rates published by the European Central Bank (base USD)
-   */
-  (function() {
-    https.get('https://api.fixer.io/latest?base=USD', function(response) {
-      if (response.headers['content-type'] === 'application/json') {
-        var buffer = '';
+    /**
+     * Update wallet info on initial client connection and repeat every 10 seconds
+     */
+    (function update() {
+      rpc.call([
+          {'jsonrpc':'2.0', 'method':'getinfo', 'params':[], 'id':0},
+          {'jsonrpc':'2.0', 'method':'getincentiveinfo', 'params':[], 'id':0}
+        ], function(error, response) {
 
-        response.on('data', function(data) {
-          buffer += data;
+        if (error || !response) {
+          console.log('RPC getinfo && getincentiveinfo ERROR\n\n', error);
+          return;
+        }
+
+        cache.wallet_info = Object.assign({}, response[0].result, response[1].result);
+        cache.wallet_info.version = cache.wallet_info.version.replace(':', ' ');
+
+        socket.emit('wallet_info', cache.wallet_info);
+      });
+
+      setTimeout(update, 10000);
+    })();
+
+    /**
+     * Update nodes info on initial client connection and repeat every 60 seconds
+     */
+    (function update() {
+      rpc.call([
+          {'jsonrpc':'2.0', 'method':'getpeerinfo', 'params':[], 'id':0},
+          {'jsonrpc':'2.0', 'method':'getnetworkinfo', 'params':[], 'id':0}
+        ], function(error, response) {
+
+        if (error || !response) {
+          console.log('RPC getpeerinfo && getnetworkinfo ERROR\n\n', error);
+          return;
+        }
+
+        var endpoints = [];
+        var save = false;
+
+        cache.wallet_info.udp_connections = response[1].result.udp.connections;
+
+        var connected_nodes = response[0].result.filter(function(peer) {
+          return parseInt(peer.lastsend) !== 0;
         });
 
-        response.on('end', function() {
-          var exchange_rates = JSON.parse(buffer);
+        connected_nodes.forEach(function(peer) {
+          peer.group = 'Connected nodes';
+          peer.subver_clean = peer.subver.replace('/', '').replace('/', '').replace(':',' ');
 
-          if (exchange_rates.hasOwnProperty('date') && exchange_rates.hasOwnProperty('base') && exchange_rates.hasOwnProperty('rates')) {
-            /**
-             * Check if response is newer
-             */
-            if (exchange_rates.date !== cache.currencies.local.date) {
-              cache.currencies.local.date = exchange_rates.date;
-              cache.currencies.local.base = exchange_rates.base;
+          /**
+           * Convert to miliseconds
+           */
+          peer.lastsend *= 1000;
+          peer.lastrecv *= 1000;
+          peer.conntime *= 1000;
 
-              for (var i in exchange_rates.rates) {
-                cache.currencies.local.rates[i] = {
-                  'rate':exchange_rates.rates[i]
-                };
-              }
+          /**
+           * Check if there's geodata on IP, else request it
+           */
+          var ip = peer.addr.split(':')[0];
 
-              /**
-               * Because USD is used as base set its rate to 1
-               */
-              cache.currencies.local.rates.USD = {
-                'rate':1
-              };
-            }
+          if (cache.nodes.geodata[ip]) {
+            peer.lon = cache.nodes.geodata[ip].lon;
+            peer.lat = cache.nodes.geodata[ip].lat;
+            peer.country = cache.nodes.geodata[ip].country;
+          } else {
+            https_getlocation(ip);
+            save = true;
           }
         });
-      }
-    }).on('error', function(error) {
-      console.log('HTTPS api.fixer.io/latest?base=USD ERROR\n\n', error);
-      return;
-    });
-  })();
 
-  /**
-   * Update wallet info on initial client connection and repeat every 10 seconds
-   */
-  (function update() {
-    rpc.call([
-        {'jsonrpc':'2.0', 'method':'getinfo', 'params':[], 'id':0},
-        {'jsonrpc':'2.0', 'method':'getincentiveinfo', 'params':[], 'id':0}
-      ], function(error, response) {
+        response[1].result.endpoints.forEach(function(endpoint) {
+          var ip = endpoint.split(':')[0];
 
-      if (error || !response) {
-        console.log('RPC getinfo && getincentiveinfo ERROR\n\n', error);
-        return;
-      }
+          if (cache.nodes.geodata[ip]) {
+            endpoints.push({
+              'addr':endpoint,
+              'group':'Network endpoints',
+              'lon':cache.nodes.geodata[ip].lon,
+              'lat':cache.nodes.geodata[ip].lat,
+              'country':cache.nodes.geodata[ip].country
+            });
+          } else {
+            https_getlocation(ip);
+            save = true;
+          }
+        });
 
-      cache.wallet_info = Object.assign({}, response[0].result, response[1].result);
-      cache.wallet_info.version = cache.wallet_info.version.replace(':', ' ');
+        cache.nodes.connected = connected_nodes;
+        cache.nodes.endpoints = endpoints;
 
-      socket.emit('wallet_info', cache.wallet_info);
-    });
+        socket.emit('nodes_geomap', cache.nodes.endpoints.concat(cache.nodes.connected));
+        socket.emit('nodes_connected', cache.nodes.connected);
 
-    setTimeout(update, 10000);
-  })();
-
-  /**
-   * Update nodes info on initial client connection and repeat every 60 seconds
-   */
-  (function update() {
-    rpc.call([
-        {'jsonrpc':'2.0', 'method':'getpeerinfo', 'params':[], 'id':0},
-        {'jsonrpc':'2.0', 'method':'getnetworkinfo', 'params':[], 'id':0}
-      ], function(error, response) {
-
-      if (error || !response) {
-        console.log('RPC getpeerinfo && getnetworkinfo ERROR\n\n', error);
-        return;
-      }
-
-      var endpoints = [];
-      var save = false;
-
-      cache.wallet_info.udp_connections = response[1].result.udp.connections;
-
-      var connected_nodes = response[0].result.filter(function(peer) {
-        return parseInt(peer.lastsend) !== 0;
-      });
-
-      connected_nodes.forEach(function(peer) {
-        peer.group = 'Connected nodes';
-        peer.subver_clean = peer.subver.replace('/', '').replace('/', '').replace(':',' ');
-
-        /**
-         * Convert to miliseconds
-         */
-        peer.lastsend *= 1000;
-        peer.lastrecv *= 1000;
-        peer.conntime *= 1000;
-
-        /**
-         * Check if there's geodata on IP, else request it
-         */
-        var ip = peer.addr.split(':')[0];
-
-        if (cache.nodes.geodata[ip]) {
-          peer.lon = cache.nodes.geodata[ip].lon;
-          peer.lat = cache.nodes.geodata[ip].lat;
-          peer.country = cache.nodes.geodata[ip].country;
-        } else {
-          https_getlocation(ip);
-          save = true;
+        if (save) {
+          setTimeout(function() {
+            fs.writeFile('data/nodes_geodata.json', JSON.stringify(cache.nodes.geodata), function(error) {
+              if (error) {
+                console.log('FS.WRITE data/nodes_geodata.json ERROR\n\n', error);
+                return;
+              }
+            });
+          }, 1000);
         }
       });
 
-      response[1].result.endpoints.forEach(function(endpoint) {
-        var ip = endpoint.split(':')[0];
+      setTimeout(update, 60000);
+    })();
 
-        if (cache.nodes.geodata[ip]) {
-          endpoints.push({
-            'addr':endpoint,
-            'group':'Network endpoints',
-            'lon':cache.nodes.geodata[ip].lon,
-            'lat':cache.nodes.geodata[ip].lat,
-            'country':cache.nodes.geodata[ip].country
-          });
-        } else {
-          https_getlocation(ip);
-          save = true;
-        }
-      });
+    /**
+     * Update latest trades from Poloniex & Bittrex on initial client connection and repeat every 75 seconds
+     */
+    (function update() {
+      var promises = [];
 
-      cache.nodes.connected = connected_nodes;
-      cache.nodes.endpoints = endpoints;
+      promises.push(new Promise(function(resolve, reject) {
+        var trades = [];
 
-      socket.emit('nodes_geomap', cache.nodes.endpoints.concat(cache.nodes.connected));
-      socket.emit('nodes_connected', cache.nodes.connected);
+        https.get('https://poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL', function(response) {
+          if (response.headers['content-type'] === 'application/json') {
+            var buffer = '';
 
-      if (save) {
-        setTimeout(function() {
-          fs.writeFile('data/nodes_geodata.json', JSON.stringify(cache.nodes.geodata), function(error) {
-            if (error) {
-              console.log('FS.WRITE data/nodes_geodata.json ERROR\n\n', error);
-              return;
-            }
-          });
-        }, 1000);
-      }
-    });
+            response.on('data', function(data) {
+              buffer += data;
+            });
 
-    setTimeout(update, 60000);
-  })();
+            response.on('end', function() {
+              var trade_history = JSON.parse(buffer);
 
-  /**
-   * Update latest trades from Poloniex & Bittrex on initial client connection and repeat every 75 seconds
-   */
-  (function update() {
-    var promises = [];
+              if (trade_history !== null) {
+                cache.currencies.vanilla.poloniex = parseFloat(trade_history[0].rate);
 
-    promises.push(new Promise(function(resolve, reject) {
-      var trades = [];
-
-      https.get('https://poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL', function(response) {
-        if (response.headers['content-type'] === 'application/json') {
-          var buffer = '';
-
-          response.on('data', function(data) {
-            buffer += data;
-          });
-
-          response.on('end', function() {
-            var trade_history = JSON.parse(buffer);
-
-            if (trade_history !== null) {
-              cache.currencies.vanilla.poloniex = parseFloat(trade_history[0].rate);
-
-              trade_history.forEach(function(trade) {
-                trades.push({
-                  'exchange':'poloniex',
-                  'date':trade.date,
-                  'type':trade.type,
-                  'vanilla_rate':trade.rate,
-                  'vanilla_amount':trade.amount,
-                  'btc_total':trade.total
-                });
-              });
-
-              return resolve(trades);
-            }
-          });
-        }
-      }).on('error', function(error) {
-        return reject('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL ERROR\n\n' + error);
-      });
-    }));
-
-    promises.push(new Promise(function(resolve, reject) {
-      var trades = [];
-
-      https.get('https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50', function(response) {
-        if (response.headers['content-type'] === 'application/json; charset=utf-8') {
-          var buffer = '';
-
-          response.on('data', function(data) {
-            buffer += data;
-          });
-
-          response.on('end', function() {
-            var trade_history = JSON.parse(buffer);
-
-            if (trade_history) {
-              if (trade_history.result) {
-                if (trade_history.result.length !== 0) {
-                  cache.currencies.vanilla.bittrex = parseFloat(trade_history.result[0].Price);
-
-                  trade_history.result.forEach(function(trade) {
-                    trades.push({
-                      'exchange':'bittrex',
-                      'date':trade.TimeStamp,
-                      'type':trade.OrderType,
-                      'vanilla_rate':trade.Price,
-                      'vanilla_amount':trade.Quantity,
-                      'btc_total':trade.Total
-                    });
+                trade_history.forEach(function(trade) {
+                  trades.push({
+                    'exchange':'poloniex',
+                    'date':trade.date,
+                    'type':trade.type,
+                    'vanilla_rate':trade.rate,
+                    'vanilla_amount':trade.amount,
+                    'btc_total':trade.total
                   });
+                });
 
-                  return resolve(trades);
+                return resolve(trades);
+              }
+            });
+          }
+        }).on('error', function(error) {
+          return reject('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL ERROR\n\n' + error);
+        });
+      }));
+
+      promises.push(new Promise(function(resolve, reject) {
+        var trades = [];
+
+        https.get('https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50', function(response) {
+          if (response.headers['content-type'] === 'application/json; charset=utf-8') {
+            var buffer = '';
+
+            response.on('data', function(data) {
+              buffer += data;
+            });
+
+            response.on('end', function() {
+              var trade_history = JSON.parse(buffer);
+
+              if (trade_history) {
+                if (trade_history.result) {
+                  if (trade_history.result.length !== 0) {
+                    cache.currencies.vanilla.bittrex = parseFloat(trade_history.result[0].Price);
+
+                    trade_history.result.forEach(function(trade) {
+                      trades.push({
+                        'exchange':'bittrex',
+                        'date':trade.TimeStamp,
+                        'type':trade.OrderType,
+                        'vanilla_rate':trade.Price,
+                        'vanilla_amount':trade.Quantity,
+                        'btc_total':trade.Total
+                      });
+                    });
+
+                    return resolve(trades);
+                  }
                 }
               }
-            }
-          });
+            });
+          }
+        }).on('error', function(error) {
+          return reject('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50 ERROR\n\n' + error);
+        });
+      }));
+
+      Promise.all(promises).then(function AcceptHandler(trades) {
+        var poloniex = trades[0];
+        var bittrex = trades[1];
+        var trades = poloniex.concat(bittrex);
+
+        if (trades.length !== 0) {
+          cache.trades = trades;
+          socket.emit('trades', cache.trades);
         }
-      }).on('error', function(error) {
-        return reject('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50 ERROR\n\n' + error);
-      });
-    }));
 
-    Promise.all(promises).then(function AcceptHandler(trades) {
-      var poloniex = trades[0];
-      var bittrex = trades[1];
-      var trades = poloniex.concat(bittrex);
+        if (cache.currencies.vanilla.poloniex && cache.currencies.vanilla.bittrex) {
+          cache.currencies.vanilla.average = (cache.currencies.vanilla.poloniex + cache.currencies.vanilla.bittrex) / 2;
+        } else {
+          cache.currencies.vanilla.average = cache.currencies.vanilla.poloniex + cache.currencies.vanilla.bittrex;
+        }
 
-      if (trades.length !== 0) {
-        cache.trades = trades;
-        socket.emit('trades', cache.trades);
-      }
-
-      if (cache.currencies.vanilla.poloniex && cache.currencies.vanilla.bittrex) {
-        cache.currencies.vanilla.average = (cache.currencies.vanilla.poloniex + cache.currencies.vanilla.bittrex) / 2;
-      } else {
-        cache.currencies.vanilla.average = cache.currencies.vanilla.poloniex + cache.currencies.vanilla.bittrex;
-      }
-
-      if (cache.currencies.local.date) {
         socket.emit('currency_info', {
           'code':cache.settings.local_currency,
           'btc':cache.currencies.local.rates[cache.settings.local_currency].btc,
           'vanilla_average':cache.currencies.vanilla.average
         });
-      }
-    }, function ErrorHandler(error) {
-      console.log(error);
-    });
+      }, function ErrorHandler(error) {
+        console.log(error);
+      });
 
-    setTimeout(update, 75000);
-  })();
+      setTimeout(update, 75000);
+    })();
 
-  setTimeout(function() {
     /**
      * Update receivedby totals on initial client connection and repeat every 90 seconds
      */
@@ -1232,7 +1230,7 @@ io.on('connection', function(socket) {
       check_watchaddresses();
       setTimeout(update, 900000);
     })();
-  }, 300);
+  }, 100);
 
   /**
    * Update latest BTC prices on initial client connection and repeat every hour
@@ -1277,7 +1275,7 @@ io.on('connection', function(socket) {
  */
 router.get('/', function(req, res, next) {
   res.render('index', {
-    'title':'Vanilla WebUI'
+    title:'Vanilla WebUI'
   });
 });
 

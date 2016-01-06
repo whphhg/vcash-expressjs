@@ -1,36 +1,41 @@
 //
-  Copyright (C) 2015 whphhg
-
-  This program is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version. For more information read the
-  complete license in LICENSE.md.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//  Copyright (C) 2015 whphhg
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version. For more information read the
+//  complete license in LICENSE.md.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 extends layout
 block content
   script.
     "use strict";
 
-    /**
-     * Globals
-     */
-    var balance = 0,
-        blocks = 0,
-        moneysupply = 0,
-        accounts_tables = {},
-        local_currency = {
+    var views = {};
+    var blocks = 0;
+    var balance = 0;
+    var moneysupply = 0;
+    var accounts_tables = {};
+
+    var local_currency = {
       'code':'',
       'btc':0,
       'vanilla_average':0
+    };
+
+    var local_params = {
+      'symbol':'',
+      'decimal':0,
+      'thousdan':0
     };
 
     /**
@@ -39,14 +44,14 @@ block content
     var socket = io(':20123');
 
     /**
-     * Set correct stylesheet
+     * Set stylesheet
      */
     socket.on('stylesheet', function(stylesheet) {
       $('head link#theme').attr('href', '/stylesheets/' + stylesheet.toLowerCase() + '.css');
     });
 
     /**
-     * Alert feed
+     * Alerts event
      */
     socket.on('alerts', function(text) {
       alert(text);
@@ -57,54 +62,105 @@ block content
      */
     socket.on('wallet_info', function(wallet_info) {
       for (var i in wallet_info) {
-        if (i == 'balance') {
+        if (i === 'balance') {
           $('#' + i).text(accounting.formatMoney(wallet_info[i], '', 6, ',', '.'));
         } else {
           $('#' + i).text(wallet_info[i]);
         }
       }
 
-      if (wallet_info['stake'] == 0) {
-        if (!$('#nav-staking').hasClass('hidden')) {
-          $('#nav-staking').addClass('hidden');
-        }
+      if (wallet_info.stake === 0) {
+        $('#nav-staking').addClass('hidden');
       } else {
-        if ($('#nav-staking').hasClass('hidden')) {
-          $('#nav-staking').toggleClass('hidden');
-        }
+        $('#nav-staking').removeClass('hidden');
       }
 
-      if (wallet_info['newmint'] == 0) {
-        if (!$('#nav-immature').hasClass('hidden')) {
-          $('#nav-immature').addClass('hidden');
-        }
+      if (wallet_info.newmint === 0) {
+        $('#nav-immature').addClass('hidden');
       } else {
-        if ($('#nav-immature').hasClass('hidden')) {
-          $('#nav-immature').toggleClass('hidden');
-        }
+        $('#nav-immature').removeClass('hidden');
       }
 
-      /**
-       * Global variables needed for calculations elsewhere
-       */
-      balance = wallet_info['balance'];
-      blocks = wallet_info['blocks'];
-      moneysupply = wallet_info['moneysupply'];
+      balance = wallet_info.balance;
+      blocks = wallet_info.blocks;
+      moneysupply = wallet_info.moneysupply;
 
-      $('#connected_to_nodes').text(wallet_info['connections']);
+      $('#connected_to_nodes').text(wallet_info.connections);
     });
 
     /**
-     * Set views statuses (hidden or not)
+     * Update currency info
      */
-    var views = {};
+    socket.on('currency_info', function(currency) {
+      local_params = local_currency_params(currency.code);
+      local_currency = currency;
 
+      /**
+       * Update #[span#key] elements
+       */
+      $('#vnl_btc').text(accounting.formatMoney(currency.vanilla_average, '', 8, ',', '.'));
+      $('#vnl_local').text(accounting.formatMoney(currency.vanilla_average * currency.btc, local_params.symbol, 3, local_params.thousand, local_params.decimal) + ' ' + currency.code);
+      $('#vnl_local_marketcap').text(accounting.formatMoney(currency.vanilla_average * moneysupply * currency.btc, local_params.symbol, 0, local_params.thousand, local_params.decimal) + ' ' + currency.code);
+      $('#balance_btc').text(accounting.formatMoney(currency.vanilla_average * balance, '', 8, ',', '.'));
+      $('#balance_local').text(accounting.formatMoney(currency.vanilla_average * balance * currency.btc, local_params.symbol, 2, local_params.thousand, local_params.decimal) + ' ' + currency.code);
+
+      /**
+       * Update conversion form LOCAL option with local currency & select current currency
+       */
+      $('#select_converting_currency option[value="LOCAL"]').text(currency.code);
+      $('#select_local_currency').text(currency.code);
+    });
+
+    /**
+     * Returns local currency properties
+     */
+    function local_currency_params(currency) {
+      var symbol = '';
+      var decimal = '.';
+      var thousand = ',';
+
+      if (currency === 'AUD' || currency === 'CAD' || currency === 'HKD' || currency === 'NZD' || currency === 'SGD' || currency === 'USD') {
+        symbol = '$';
+      } else if (currency === 'CNY') {
+        symbol = '元';
+      } else if (currency === 'GBP') {
+        symbol = '£';
+      } else if (currency === 'ILS') {
+        symbol = '₪';
+      } else if (currency === 'INR') {
+        symbol = '₹';
+      } else if (currency === 'JPY') {
+        symbol = '¥';
+      } else if (currency === 'KRW') {
+        symbol = '₩';
+      } else if (currency === 'MXN' || currency === 'PHP') {
+        symbol = '₱';
+      } else if (currency === 'THB') {
+        symbol = '฿';
+      } else if (currency === 'TRY') {
+        symbol = '₤';
+      } else if (currency === 'EUR') {
+        symbol = '€';
+        decimal = ',';
+        thousand = '.';
+      }
+
+      return {
+        'symbol':symbol,
+        'decimal':decimal,
+        'thousand':thousand
+      };
+    }
+
+    /**
+     * Populate possible views object
+     */
     $(document).ready(function() {
       $('#views > div').map(function() {
-        if ($('#' + this['id']).hasClass('hidden')) {
-          views[this['id']] = true;
+        if ($('#' + this.id).hasClass('hidden')) {
+          views[this.id] = true;
         } else {
-          views[this['id']] = false;
+          views[this.id] = false;
         }
       });
     });
@@ -113,7 +169,7 @@ block content
      * Set view
      */
     function set_view(view) {
-      if (!views[view] || view == 'view-home') {
+      if (!views[view] || view === 'view-home') {
         /**
          * Hide all, show Home
          */
@@ -169,175 +225,39 @@ block content
       }
     }
 
-    /**
-     * Return currency local properties
-     *
-     * TODO: Finish local decimal/thousand separators for all currencies
-     */
-    function local_currency_params(currency) {
-      var local_symbol = '';
-      var local_decimal = '.';
-      var local_thousand = ',';
-
-      if (currency == 'AUD' || currency == 'CAD' || currency == 'HKD' || currency == 'NZD' || currency == 'SGD' || currency == 'USD') {
-        local_symbol = '$';
-      } else if (currency == 'CNY') {
-        local_symbol = '元';
-      } else if (currency == 'GBP') {
-        local_symbol = '£';
-      } else if (currency == 'ILS') {
-        local_symbol = '₪';
-      } else if (currency == 'INR') {
-        local_symbol = '₹';
-      } else if (currency == 'JPY') {
-        local_symbol = '¥';
-      } else if (currency == 'KRW') {
-        local_symbol = '₩';
-      } else if (currency == 'MXN' || currency == 'PHP') {
-        local_symbol = '₱';
-      } else if (currency == 'THB') {
-        local_symbol = '฿';
-      } else if (currency == 'TRY') {
-        local_symbol = '₤';
-      } else if (currency == 'EUR') {
-        local_symbol = '€';
-        local_decimal = ',';
-        local_thousand = '.';
-      }
-
-      return {"symbol":local_symbol, "decimal":local_decimal, "thousand":local_thousand};
-    }
-
-    socket.on('currency_info', function(currency) {
-      var local_params = local_currency_params(currency['code']);
-        local_currency = currency;
-
-      /**
-       * Update #[span#key] elements
-       */
-      $('#vnl_btc').text(accounting.formatMoney(currency['vanilla_average'], '', 8, ',', '.'));
-      $('#vnl_local').text(accounting.formatMoney(currency['vanilla_average'] * currency['btc'], local_params['symbol'], 3, local_params['thousand'], local_params['decimal']) + ' ' + currency['code']);
-      $('#vnl_local_marketcap').text(accounting.formatMoney(currency['vanilla_average'] * moneysupply * currency['btc'], local_params['symbol'], 0, local_params['thousand'], local_params['decimal']) + ' ' + currency['code']);
-      $('#balance_btc').text(accounting.formatMoney(currency['vanilla_average'] * balance, '', 8, ',', '.'));
-      $('#balance_local').text(accounting.formatMoney(currency['vanilla_average'] * balance * currency['btc'], local_params['symbol'], 2, local_params['thousand'], local_params['decimal']) + ' ' + currency['code']);
-
-      /**
-       * Update conversion form LOCAL option with local currency & select current currency
-       */
-      $('#select_converting_currency option[value="LOCAL"]').text(currency['code']);
-      $('#select_local_currency').text(currency['code']);
-    });
-
-    /**
-     * Initial wallet "lock / unlock / encrypt" (passphrase) check
-     */
-    socket.on('wallet_status', function(res) {
-      /**
-       * error_code_wallet_wrong_enc_state = -15, wallet not encrypted
-       */
-      if (res.code == -15) {
-        /**
-         * Show encryption form
-         */
-        $('#wallet_encrypt').toggleClass('hidden');
-
-        /**
-         * Change glyphicon-lock to red to get users attention
-         */
-        $('#lock_unlock').addClass('red');
-      }
-      /**
-       * error_code_invalid_params = -32602, wallet is encrypted and locked (in this case)
-       */
-      else if (res.code == -32602) {
-        /**
-         * Hide locking form and show unlocking form
-         */
-        $('#wallet_lock').addClass('hidden');
-        $('#wallet_unlock').toggleClass('hidden');
-
-        /**
-         * Disable input fields of forms that require the wallet to be unlocked
-         */
-        $('#input_import_private_key').prop('disabled', true);
-        $('#input_dump_private_key').prop('disabled', true);
-        $('#button_dump_wallet').prop('disabled', true);
-        $('#input_transfer_amount').prop('disabled', true);
-        $('#input_transfer_recipient').prop('disabled', true);
-
-        /**
-         * Revert glyphicon-lock to it's original color
-         */
-        $('#lock_unlock').removeClass('red');
-      }
-      /**
-       * error_code_wallet_already_unlocked = -17, wallet unlocked
-       */
-      else if (res.code == -17) {
-        /**
-         * Hide unlocking form and show locking form
-         */
-        $('#wallet_unlock').addClass('hidden');
-        $('#wallet_lock').toggleClass('hidden');
-
-        /**
-         * Enable input fields of forms that require the wallet to be unlocked
-         */
-        $('#input_import_private_key').prop('disabled', false);
-        $('#input_dump_private_key').prop('disabled', false);
-        $('#button_dump_wallet').prop('disabled', false);
-        $('#input_transfer_amount').prop('disabled', false);
-        $('#input_transfer_recipient').prop('disabled', false);
-
-        /**
-         * Change glyphicon-lock to red to get users attention
-         */
-        $('#lock_unlock').addClass('red');
-      }
-    });
-
   nav.navbar.navbar-default
     .container-fluid
       .row
         .col-md-12
           .navbar-header
-            button(type="button", class="navbar-toggle collapsed", data-toggle="collapse", data-target="#vanilla-navbar", aria-expanded="false")
-              span.sr-only Toggle navigation
-              span.icon-bar
-              span.icon-bar
-              span.icon-bar
-            a.navbar-brand(href="http://vanillacoin.net", target='_blank')
+            a.navbar-brand(href='http://vanillacoin.net', target='_blank')
               img(src='/images/vanilla.png')
           .collapse.navbar-collapse
             ul.nav.navbar-nav
               li
-                h3.navbar-text.font-mono #[span#balance] &nbsp;#[span#balance_btc] BTC ~ #[span#balance_local]
-              li#refresh
-                a(href="#", data-toggle="tooltip", data-placement="bottom", title="Refresh transactions & accounts")
+                h3.navbar-text.font-mono #[span#balance] ~ #[span#balance_btc] BTC  &nbsp;#[span#balance_local]
+              li#refresh-li
+                a(href='#', data-toggle='tooltip', data-placement='bottom', title='Refresh transactions & accounts')
                   i.glyphicon.glyphicon-refresh
                 script.
                   $('[data-toggle="tooltip"]').tooltip();
-                  /**
-                   * Get latest watch addresses, addresses and transaction history
-                   */
-                  $('li#refresh').click(function() {
+                  $('li#refresh-li').click(function() {
                     socket.emit('refresh', true);
                     $('.tooltip').hide();
                   });
 
-              li#home
-                a(href="#", data-toggle="tooltip", data-placement="bottom", title="Home")
+              li#home-li
+                a(href='#', data-toggle='tooltip', data-placement='bottom', title='Home')
                   i.glyphicon.glyphicon-home
                 script.
                   $('[data-toggle="tooltip"]').tooltip();
-
-                  $('li#home').click(function() {
+                  $('#home-li').click(function() {
                     set_view('view-home');
                     $('.tooltip').hide();
                   });
 
               li.dropdown#transfer
-                a.dropdown-toggle(href="#", data-toggle='dropdown', data-placement="bottom", title="Transfer coins")
+                a.dropdown-toggle(href='#', data-toggle='dropdown', data-placement='bottom', title='Transfer coins')
                   i.glyphicon.glyphicon-send
                 script.
                   $('li#transfer a').tooltip();
@@ -351,12 +271,12 @@ block content
                         .col-md-4
                           .btn-group.btn-group-justified
                             .btn-group
-                              input.btn(type="button", id="button_transfer_add_recipient", value='+')
+                              input.btn(type='button', id='button_transfer_add_recipient', value='+')
                             .btn-group
-                              input.btn(type="submit", id="button_transfer", value="Transfer")
+                              input.btn(type='submit', id='button_transfer', value='Transfer')
                         .col-md-8#form_transfer
-                          input.col-md-3(id="input_transfer_amount", type="text", placeholder="Amount")
-                          input.col-md-9(id="input_transfer_recipient", type="text", maxlength='34', placeholder="A valid address")
+                          input.col-md-3(id='input_transfer_amount', type='text', placeholder='Amount')
+                          input.col-md-9(id='input_transfer_recipient', type='text', maxlength='34', placeholder='A valid address')
                         script.
                           $('[data-toggle="tooltip"]').tooltip();
                           /**
@@ -367,7 +287,7 @@ block content
                             var inputs_empty = false;
 
                             $('#form_transfer input').each(function() {
-                              if ($(this).val().length == 0) {
+                              if ($(this).val().length === 0) {
                                 inputs_empty = true;
                               }
                             });
@@ -379,12 +299,11 @@ block content
                             }
                           });
 
-                          /**
-                           * Emit new watch address
-                           */
                           $('#button_transfer').click(function() {
-
-                            socket.emit('validateaddress', [$('#input_transfer_recipient').val(), $('#input_transfer_amount').val()]);
+                            socket.emit('validateaddress', [
+                              $('#input_transfer_recipient').val(),
+                              $('#input_transfer_amount').val()
+                            ]);
                           });
 
                           /**
@@ -394,34 +313,29 @@ block content
                             var address = obj[0];
                             var amount = obj[1]
 
-                            if (confirm("Recipient: " + address + "\nAmount: " + amount + "\n\nAre you sure you want to transfer the coins?") == true) {
+                            if (confirm("Recipient: " + address + "\nAmount: " + amount + "\n\nAre you sure you want to transfer the coins?") === true) {
                               socket.emit('sendtoaddress', [address, amount]);
                             }
                           });
 
               li#view-node-incentives-li
-                a(href="#", data-toggle="tooltip", data-placement="bottom", title="Node incentives")
+                a(href='#', data-toggle='tooltip', data-placement='bottom', title='Node incentives')
                   i.glyphicon.glyphicon-stats
                 script.
                   $('[data-toggle="tooltip"]').tooltip();
-
-                  /**
-                   * Switch to node incentives view
-                   */
                   $('li#view-node-incentives-li').click(function() {
                     set_view('view-node-incentives');
                     $('.tooltip').not(this).hide();
                   });
 
               li.dropdown#currency_conversion
-                a.dropdown-toggle(href="#", data-toggle='dropdown', data-placement="bottom", title="Convert between currencies")
+                a.dropdown-toggle(href='#', data-toggle='dropdown', data-placement='bottom', title='Convert between currencies')
                   i.glyphicon.glyphicon-transfer
                 script.
                   $('li#currency_conversion a').tooltip();
                   $('li#currency_conversion a').click(function() {
                     $('.tooltip').hide();
                   });
-
                 ul.dropdown-menu
                   li
                     .navbar-convert
@@ -429,16 +343,16 @@ block content
                         .col-md-7
                           input.col-md-12(id='input_convert_amount', type='text', maxlength='15', placeholder='Convert')
                         .col-md-5
-                          select.col-md-12.text-center(id="select_converting_currency")
+                          select.col-md-12.text-center(id='select_converting_currency')
                             option(value='VNL') VNL
                             option(value='BTC') BTC
                             option(value='LOCAL') LOCAL
                       .row
                         .col-md-12
                           #convert_currency.hidden.m-t-10
-                            b #[span#convert_to_left] #[span#convert_to_left_name]
+                            b #[span#convert_top] #[span#convert_top_name]
                             br
-                            b #[span#convert_to_right] #[span#convert_to_right_name]
+                            b #[span#convert_bottom] #[span#convert_bottom_name]
                       script.
                         $('#input_convert_amount').on('submit', function(e) {
                           e.preventDefault();
@@ -454,81 +368,68 @@ block content
                         /**
                          * Allow only backspace, delete, left arrow, right arrow, period, enter, 0-9, numpad 0-9
                          */
-                        $("#input_convert_amount").keydown(function(e) {
-                          if (!(e.keyCode == 46 || e.keyCode == 8 || e.keyCode == 37 || e.keyCode == 39 || e.keyCode == 190 || e.keyCode == 13 || (e.keyCode >= 48 && e.keyCode <= 57) || (e.keyCode >= 96 && e.keyCode <= 105))) {
+                        $('#input_convert_amount').keydown(function(e) {
+                          if (!(e.keyCode === 46 || e.keyCode === 8 || e.keyCode === 37 || e.keyCode === 39 || e.keyCode === 190 || e.keyCode === 13 || (e.keyCode >= 48 && e.keyCode <= 57) || (e.keyCode >= 96 && e.keyCode <= 105))) {
                             e.preventDefault();
                           }
                         });
 
-                        /**
-                         * Calculate and update values during input
-                         */
                         $('#input_convert_amount').keyup(function() {
-                          if ($('#convert_currency').hasClass('hidden')) {
+                          $("#convert_currency").removeClass('hidden');
+
+                          if ($('#input_convert_amount').val() === '') {
                             $("#convert_currency").toggleClass('hidden');
                           }
-
-                          /**
-                           * Hide conversion info if input empty
-                           */ 
-                          if ($('#input_convert_amount').val() == '') {
-                            $("#convert_currency").toggleClass('hidden');
-                          }
-
-                          var local_params = local_currency_params(local_currency['code']);
 
                           /**
                            * Hide conversion info on currency switch and clear input field
                            */
                           $('#select_converting_currency').change(function() {
-                            if (!$('#convert_currency').hasClass('hidden')) {
-                              $("#convert_currency").toggleClass('hidden');
-                            }
-
+                            $("#convert_currency").addClass('hidden');
                             $('#input_convert_amount').val('');
                           });
 
-                          if ($('#select_converting_currency').val() == 'VNL') {
+                          if ($('#select_converting_currency').val() === 'VNL') {
                             /**
                              * Update convert to BTC values
                              */
-                            $('#convert_to_left').text(accounting.formatMoney($('#input_convert_amount').val() * local_currency['vanilla_average'], '', 8, ',', '.'));
-                            $('#convert_to_left_name').text('BTC');
+                            $('#convert_top').text(accounting.formatMoney($('#input_convert_amount').val() * local_currency.vanilla_average, '', 8, ',', '.'));
+                            $('#convert_top_name').text('BTC');
 
                             /**
                              * Update convert to LOCAL values
                              */
-                            $('#convert_to_right').text(accounting.formatMoney($('#input_convert_amount').val() * local_currency['btc'] * local_currency['vanilla_average'], local_params['symbol'], 3, local_params['thousand'], local_params['decimal']));
-                            $('#convert_to_right_name').text(local_currency['code']);
-                          } else if ($('#select_converting_currency').val() == 'BTC') {
+                            $('#convert_bottom').text(accounting.formatMoney($('#input_convert_amount').val() * local_currency.btc * local_currency.vanilla_average, local_params.symbol, 3, local_params.thousand, local_params.decimal));
+                            $('#convert_bottom_name').text(local_currency.code);
+                          } else if ($('#select_converting_currency').val() === 'BTC') {
                             /**
                              * Update convert to VNL values
                              */
-                            $('#convert_to_left').text(accounting.formatMoney($('#input_convert_amount').val() / local_currency['vanilla_average'], '', 6, ',', '.'));
-                            $('#convert_to_left_name').text('VNL');
+                            $('#convert_top').text(accounting.formatMoney($('#input_convert_amount').val() / local_currency.vanilla_average, '', 6, ',', '.'));
+                            $('#convert_top_name').text('VNL');
 
                             /**
                              * Update convert to LOCAL values
                              */
-                            $('#convert_to_right').text(accounting.formatMoney($('#input_convert_amount').val() * local_currency['btc'], local_params['symbol'], 3, local_params['thousand'], local_params['decimal']));
-                            $('#convert_to_right_name').text(local_currency['code']);
+                            $('#convert_bottom').text(accounting.formatMoney($('#input_convert_amount').val() * local_currency.btc, local_params.symbol, 3, local_params.thousand, local_params.decimal));
+                            $('#convert_bottom_name').text(local_currency.code);
                           } else {
                             /**
                              * Update convert to VNL values
                              */
-                            $('#convert_to_left').text(accounting.formatMoney((1 / local_currency['btc'] * $('#input_convert_amount').val()) / local_currency['vanilla_average'], '', 6, ',', '.'));
-                            $('#convert_to_left_name').text('VNL');
+                            $('#convert_top').text(accounting.formatMoney((1 / local_currency.btc * $('#input_convert_amount').val()) / local_currency.vanilla_average, '', 6, ',', '.'));
+                            $('#convert_top_name').text('VNL');
 
                             /**
                              * Update convert to BTC values
                              */
-                            $('#convert_to_right').text(accounting.formatMoney(1 / local_currency['btc'] * $('#input_convert_amount').val(), '', 8, ',', '.'));
-                            $('#convert_to_right_name').text('BTC');
+                            $('#convert_bottom').text(accounting.formatMoney(1 / local_currency.btc * $('#input_convert_amount').val(), '', 8, ',', '.'));
+                            $('#convert_bottom_name').text('BTC');
                           }
                         });
 
               li.dropdown#qr_generator
-                a.dropdown-toggle(href="#", data-toggle='dropdown', data-placement="bottom", title="Generate a QR code")
+                a.dropdown-toggle(href='#', data-toggle='dropdown', data-placement='bottom', title='Generate a QR code')
                   i.glyphicon.glyphicon-qrcode
                 script.
                   $('li#qr_generator a').tooltip();
@@ -541,7 +442,7 @@ block content
                     .navbar-qrcode
                       .row
                         .col-md-8
-                          input.col-md-12(id="input_string_to_encode", type="text", maxlength='34', placeholder="Address to encode")
+                          input.col-md-12(id='input_string_to_encode', type='text', maxlength='34', placeholder='Address to encode')
                         .col-md-4
                           input.btn.col-md-12(id='button_create_qr_code', type='button', value='Generate QR code')
                       .row
@@ -554,19 +455,16 @@ block content
                          */
                         $('#button_create_qr_code').prop('disabled', true);
                         $('#input_string_to_encode').keyup(function() {
-                          $('#button_create_qr_code').prop('disabled', this.value == "" ? true : false);   
+                          $('#button_create_qr_code').prop('disabled', this.value === '' ? true : false);   
                         });
 
                         $('#button_create_qr_code').click(function() {
+                          $('#qr_output').removeClass('hidden');
                           $('#qr_code').empty();
                           $('#qr_code').qrcode({
-                            "size": 150,
-                            "text": $('#input_string_to_encode').val()
+                            'size': 150,
+                            'text': $('#input_string_to_encode').val()
                           });
-
-                          if ($('#qr_output').hasClass('hidden')) {
-                            $('#qr_output').toggleClass('hidden');
-                          }
                         });
 
               p.navbar-text#nav-unconfirmed.hidden
@@ -580,50 +478,78 @@ block content
                 b #[span#newmint]
             ul.nav.navbar-nav.navbar-right
               li#view-network-li
-                a(href="#", data-toggle="tooltip", data-placement="bottom", title="Network map")
+                a(href='#', data-toggle='tooltip', data-placement='bottom', title='Network map')
                   i.glyphicon.glyphicon-signal
                 script.
                   $('[data-toggle="tooltip"]').tooltip();
-
-                  /**
-                   * Switch to network view
-                   */
                   $('li#view-network-li').click(function() {
                     set_view('view-network');
                     $('.tooltip').not(this).hide();
-
-                    /**
-                     * Resize the geomap
-                     */
                     peers_map.invalidateSize();
-
-                    /**
-                     * Redraw the tables
-                     */
-                    peers_table.columns.adjust();
+                    socket.emit('cache_send', 'nodes.connected')
                   });
 
               li#view-maintenance-li
-                a(href="#", data-toggle="tooltip", data-placement="bottom", title="Settings & maintenance")
+                a(href='#', data-toggle='tooltip', data-placement='bottom', title='Maintenance')
                   i.glyphicon.glyphicon-cog
                 script.
                   $('[data-toggle="tooltip"]').tooltip();
-
-                  /**
-                   * Switch to maintenance view
-                   */
-                  $('li#view-maintenance-li').click(function() {
+                  $('#view-maintenance-li').click(function() {
                     set_view('view-maintenance');
                     $('.tooltip').not(this).hide();
                   });
 
               li.dropdown#lock_unlock
-                a.dropdown-toggle(href="#", data-toggle='dropdown', data-placement="bottom", title="Check wallet state")
+                a.dropdown-toggle(href='#', data-toggle='dropdown', data-placement='bottom', title='Check wallet state')
                   i.glyphicon.glyphicon-lock
                 script.
                   $('li#lock_unlock a').tooltip();
                   $('li#lock_unlock a').click(function() {
                     $('.tooltip').hide();
+                  });
+
+                  socket.on('wallet_status', function(error) {
+                    /**
+                     * error_code_wallet_wrong_enc_state = -15, wallet not encrypted
+                     */
+                    if (parseInt(error.code) === -15) {
+                      $('#wallet_encrypt').removeClass('hidden');
+                      $('#lock_unlock').addClass('red');
+                    }
+                    /**
+                     * error_code_invalid_params = -32602, wallet is encrypted and locked (in this case)
+                     */
+                    else if (parseInt(error.code) === -32602) {
+                      $('#wallet_lock').addClass('hidden');
+                      $('#wallet_unlock').removeClass('hidden');
+                      $('#lock_unlock').removeClass('red');
+
+                      /**
+                       * Disable input fields of forms that require the wallet to be unlocked
+                       */
+                      $('#input_import_private_key').prop('disabled', true);
+                      $('#input_dump_private_key').prop('disabled', true);
+                      $('#button_dump_wallet').prop('disabled', true);
+                      $('#input_transfer_amount').prop('disabled', true);
+                      $('#input_transfer_recipient').prop('disabled', true);
+                    }
+                    /**
+                     * error_code_wallet_already_unlocked = -17, wallet unlocked
+                     */
+                    else if (parseInt(error.code) === -17) {
+                      $('#wallet_unlock').addClass('hidden');
+                      $('#wallet_lock').removeClass('hidden');
+                      $('#lock_unlock').addClass('red');
+
+                      /**
+                       * Enable input fields of forms that require the wallet to be unlocked
+                       */
+                      $('#input_import_private_key').prop('disabled', false);
+                      $('#input_dump_private_key').prop('disabled', false);
+                      $('#button_dump_wallet').prop('disabled', false);
+                      $('#input_transfer_amount').prop('disabled', false);
+                      $('#input_transfer_recipient').prop('disabled', false);
+                    }
                   });
 
                 ul.dropdown-menu
@@ -632,21 +558,18 @@ block content
                       .row
                         #wallet_unlock.hidden
                           .col-md-8
-                            input.col-md-12(id="input_wallet_passphrase", type="password", placeholder="Wallet is locked! Enter passphrase to unlock")
+                            input.col-md-12(id='input_wallet_passphrase', type='password', placeholder='Wallet is locked! Enter passphrase to unlock')
                           .col-md-4
-                            input.col-md-12.btn(type="submit", id="button_wallet_unlock", value="Unlock")
+                            input.col-md-12.btn(type='submit', id='button_wallet_unlock', value='Unlock')
                           script.
                             /**
                              * Disable the button until input is filled
                              */
                             $('#button_wallet_unlock').prop('disabled', true);
                             $('#input_wallet_passphrase').keyup(function() {
-                              $('#button_wallet_unlock').prop('disabled', this.value == "" ? true : false);   
+                              $('#button_wallet_unlock').prop('disabled', this.value === '' ? true : false);   
                             });
 
-                            /**
-                             * Emit key on form submit
-                             */
                             $('#button_wallet_unlock').click(function() {
                               socket.emit('walletpassphrase', $('#input_wallet_passphrase').val());
                             });
@@ -655,30 +578,24 @@ block content
                           .col-md-12
                             input.btn.col-md-12(type='submit', id='button_wallet_lock', value='Wallet is unlocked! Lock it to prevent abuse')
                           script.
-                            /**
-                             * On "button_wallet_lock" click call RPC method walletlock on the server
-                             */
-                            $("#button_wallet_lock").click(function(){
+                            $('#button_wallet_lock').click(function(){
                               socket.emit('walletlock', true);
                             });
 
                         #wallet_encrypt.hidden
                           .col-md-8
-                            input.col-md-12(id="input_encryption_key", type="text", placeholder="Wallet is unencrypted")
+                            input.col-md-12(id='input_encryption_key', type='text', placeholder='Wallet is unencrypted')
                           .col-md-4
-                            input.col-md-12.btn(type="submit", id="button_wallet_encrypt", value="Encrypt")
+                            input.col-md-12.btn(type='submit', id='button_wallet_encrypt', value='Encrypt')
                           script.
                             /**
                              * Disable the button until input is filled
                              */
                             $('#button_wallet_encrypt').prop('disabled', true);
                             $('#input_encryption_key').keyup(function() {
-                              $('#button_wallet_encrypt').prop('disabled', this.value == "" ? true : false);   
+                              $('#button_wallet_encrypt').prop('disabled', this.value === '' ? true : false);   
                             });
 
-                            /**
-                             * Emit key on form submit
-                             */
                             $('#button_wallet_encrypt').click(function() {
                               socket.emit('encryptwallet', $('#input_encryption_key').val());
                               $('#wallet_encrypt').toggleClass('hidden');
@@ -686,7 +603,7 @@ block content
 
               input.col-md-6.pull-right(type='text', id='filter_transactions', placeholder='Filter transactions')
               script.
-                $("#filter_transactions").on("keyup search input paste cut", function() {
+                $('#filter_transactions').on('keyup search input paste cut', function() {
                   txs_table.search(this.value).draw();
                 });
 
@@ -702,30 +619,29 @@ block content
                   $('#accounts').empty();
 
                   for (var i in accounts) {
-                    var local_params = local_currency_params(local_currency['code']);
                     var hidden = 'hidden';
 
-                    if (!accounts[i]['hidden']) {
+                    if (!accounts[i].hidden) {
                       hidden = '';
                     }
 
-                    $('#accounts').append('<div class="row" id="clickable-' + i + '"><div class="col-md-6"><p class="nopadding"><i class="glyphicon glyphicon-book" />&nbsp; ' + accounts[i]['account'] + '</p></div><div class="col-md-3 text-right"><p class="nopadding">' + accounts[i]['received'] + '</p></div><div class="col-md-3 text-right"><p class="nopadding">' + accounting.formatMoney(accounts[i]['received'] * local_currency['btc'] * local_currency['vanilla_average'], local_params['symbol'], 2, local_params['thousand'], local_params['decimal']) + ' ' + local_currency['code'] + '</p></div></div>');
+                    $('#accounts').append('<div class="row" id="clickable-' + i + '"><div class="col-md-6"><p class="nopadding"><i class="glyphicon glyphicon-book" />&nbsp; ' + accounts[i].account + '</p></div><div class="col-md-3 text-right"><p class="nopadding">' + accounts[i].received + '</p></div><div class="col-md-3 text-right"><p class="nopadding">' + accounting.formatMoney(accounts[i].received * local_currency.btc * local_currency.vanilla_average, local_params.symbol, 2, local_params.thousand, local_params.decimal) + ' ' + local_currency.code + '</p></div></div>');
                     $('#accounts').append('<div id="addresses-' + i + '" class="m-b-20 ' + hidden + '">');
 
-                    var html_table = $('<table id="' + i + '" class="table table-striped table-hover"><thead><tr><th>Address</th><th style="width:17%">Received</th><th style="width:22%"></th></tr></thead></table>');
+                    var table = $('<table id="' + i + '" class="table table-striped table-hover"><thead><tr><th>Address</th><th style="width:17%">Received</th><th style="width:22%"></th></tr></thead></table>');
                     var address = '';
 
-                    for (var j in accounts[i]['addresses']) {
-                      if (accounts[i]['addresses'][j]['confirmations'] > 0) {
-                        address = '<a href="https://blockchain.vanillacoin.net/address/' + accounts[i]['addresses'][j]['address'] + '" target="_blank">' + accounts[i]['addresses'][j]['address'] + '</a>';
+                    for (var j in accounts[i].addresses) {
+                      if (accounts[i].addresses[j].confirmations > 0) {
+                        address = '<a href="https://blockchain.vanillacoin.net/address/' + accounts[i].addresses[j].address + '" target="_blank">' + accounts[i].addresses[j].address + '</a>';
                       } else {
-                        address = accounts[i]['addresses'][j]['address'];
+                        address = accounts[i].addresses[j].address;
                       }
 
-                      html_table.append('<tr><td class="font-mono">' + address + '</td><td class="text-right">' + accounting.formatMoney(accounts[i]['addresses'][j]['received'], '', 6, ',', '.') + '</td><td class="text-right">' + accounting.formatMoney(accounts[i]['addresses'][j]['received'] * local_currency['btc'] * local_currency['vanilla_average'], local_params['symbol'], 2, local_params['thousand'], local_params['decimal']) + ' ' + local_currency['code'] + '</td></tr>');
+                      table.append('<tr><td class="font-mono">' + address + '</td><td class="text-right">' + accounting.formatMoney(accounts[i].addresses[j].received, '', 6, ',', '.') + '</td><td class="text-right">' + accounting.formatMoney(accounts[i].addresses[j].received * local_currency.btc * local_currency.vanilla_average, local_params.symbol, 2, local_params.thousand, local_params.decimal) + ' ' + local_currency.code + '</td></tr>');
                     }
 
-                    $('#addresses-' + i).append(html_table);
+                    $('#addresses-' + i).append(table);
                     $('#accounts').append('</div>');
 
                     accounts_tables[i] = $('#' + i).DataTable({
@@ -734,8 +650,11 @@ block content
                       'info':false,
                       'scrollY':'234px',
                       'scrollCollapse':true,
-                      'order':[[1,'desc']],
-                      'columnDefs':[{"targets":2, "orderable":false}]
+                      'order':[[1, 'desc']],
+                      'columnDefs':[{
+                        'targets':2,
+                        'orderable':false
+                      }]
                     });
                   }
 
@@ -749,7 +668,11 @@ block content
                       hidden = true;
                     }
 
-                    socket.emit('settings_set', {'property':'hidden', 'value':hidden, 'hash':hash});
+                    socket.emit('settings_set', {
+                      'property':'hidden',
+                      'value':hidden,
+                      'hash':hash
+                    });
                     accounts_tables[hash].columns.adjust();
                   });
                 });
@@ -760,17 +683,14 @@ block content
                 .btn-group
                   input.col-md-9.btn(type='button', id='button_new_address', value='New address')
                 .btn-group
-                  input.col-md-12.btn(type="submit", id="button_import_private_key", value="Import")
+                  input.col-md-12.btn(type='submit', id='button_import_private_key', value='Import')
             .col-md-7
-              input.col-md-12(id="input_import_private_key", type="text", placeholder="A valid private key")
+              input.col-md-12(id='input_import_private_key', type='text', placeholder='A valid private key')
             script.
-              /**
-               * On "button_new_address" click call RPC method getnewaddress on the server
-               */
-              $("#button_new_address").click(function(){
+              $('#button_new_address').click(function(){
                 var account = prompt("Enter an account name below if you want to assign your new address to one");
 
-                if (account != null) {
+                if (account !== null) {
                   socket.emit('getnewaddress', account);
                 }
               });
@@ -780,33 +700,23 @@ block content
                */
               $('#button_import_private_key').prop('disabled', true);
               $('#input_import_private_key').keyup(function() {
-                $('#button_import_private_key').prop('disabled', this.value == "" ? true : false);   
-              });
-
-              $('input_import_private_key').on('submit', function(e) {
-                e.preventDefault();
+                $('#button_import_private_key').prop('disabled', this.value === '' ? true : false);   
               });
 
               $('#button_import_private_key').click(function() {
                 var account = prompt("Enter an account name below if you want to assign your address to one");
 
-                if (account != null) {
-                   /**
-                  * Disable the button again to prevent multiple submissions (it takes a few seconds to get a response from the wallet)
-                  */
+                if (account !== null) {
                   $('#button_import_private_key').prop('disabled', true);
 
-                  /**
-                   * Enable the button after 6 seconds, this (should) give enough time for the wallet to respond
-                   */
-                  setTimeout(function() {
-                     $('#button_import_private_key').prop('disabled', false);
-                  }, 6000);
+                  socket.emit('importprivkey', {
+                    'key':$('#input_import_private_key').val(),
+                    'account':account
+                  });
 
-                  /**
-                   * Call RPC method importprivkey on the server
-                   */
-                  socket.emit('importprivkey', {'key':$('#input_import_private_key').val(), 'account':account});
+                  socket.on('importprivkey_response', function() {
+                    $('#button_import_private_key').prop('disabled', false);
+                  });
                 }
               });
 
@@ -816,26 +726,22 @@ block content
                 i.glyphicon.glyphicon-eye-open
                 | &nbsp; Watch-only addresses
               #addresses-watchonly.hidden
-                .placeholder #[span#table_watch_addresses]
+                #table_watch_addresses
                 script.
-                  /**
-                   * List all watch addresses saved in config.json
-                   */
-                  socket.on('watch_addresses', function(obj) {
+                  socket.on('watch_addresses', function(watch) {
                     $('#table_watch_addresses').empty();
 
-                    if (!obj['hidden']) {
+                    if (!watch.hidden) {
                       $('#addresses-watchonly').removeClass('hidden');
                     }
 
-                    var html_table = $('<table id="watchaddresses" class="table table-striped"><thead><tr><th style="width:45%">Address</th><th style="width:16%">Title</th><th style="width:17%">Balance</th><th style="width:22%"></th></tr></thead></table>');
-                    var local_params = local_currency_params(local_currency['code']);
+                    var table = $('<table id="watchaddresses" class="table table-striped"><thead><tr><th style="width:45%">Address</th><th style="width:16%">Title</th><th style="width:17%">Balance</th><th style="width:22%"></th></tr></thead></table>');
 
-                    for (key in obj['addresses']) {
-                      html_table.append('<tr><td class="font-mono"><a href="https://blockchain.vanillacoin.net/address/' + key + '" target="_blank">' + key + '</a></td><td class="watchonly-title">' + obj['addresses'][key]['title'] + '</td><td class="text-right">' + accounting.formatMoney(obj['addresses'][key]['balance'], '', 6, ',', '.') + '</td><td class="text-right">' + accounting.formatMoney(parseFloat(obj['addresses'][key]['balance']) * local_currency['btc'] * local_currency['vanilla_average'], local_params['symbol'], 2, local_params['thousand'], local_params['decimal']) + ' ' + local_currency['code'] + '</td></tr>');
+                    for (key in watch.addresses) {
+                      table.append('<tr><td class="font-mono"><a href="https://blockchain.vanillacoin.net/address/' + key + '" target="_blank">' + key + '</a></td><td class="watchonly-title">' + watch.addresses[key].title + '</td><td class="text-right">' + accounting.formatMoney(watch.addresses[key].balance, '', 6, ',', '.') + '</td><td class="text-right">' + accounting.formatMoney(parseFloat(watch.addresses[key].balance) * local_currency.btc * local_currency.vanilla_average, local_params.symbol, 2, local_params.thousand, local_params.decimal) + ' ' + local_currency.code + '</td></tr>');
                     }
 
-                    $('#table_watch_addresses').append(html_table);
+                    $('#table_watch_addresses').append(table);
                     watchlist_table = $('#watchaddresses').DataTable({
                       'searching':false,
                       'paging':false,
@@ -843,7 +749,10 @@ block content
                       'scrollY':'234px',
                       'scrollCollapse':true,
                       'order':[[1, 'asc']],
-                      'columnDefs':[{"targets":3, "orderable":false}]
+                      'columnDefs':[{
+                        'targets':3,
+                        'orderable':false
+                      }]
                     });
                   });
 
@@ -856,7 +765,11 @@ block content
                       hidden = true;
                     }
 
-                    socket.emit('settings_set', {'property':'hidden', 'value':hidden, 'hash':'watchonly'});
+                    socket.emit('settings_set', {
+                      'property':'hidden',
+                      'value':hidden,
+                      'hash':'watchonly'}
+                    );
                     watchlist_table.columns.adjust();
                   });
 
@@ -864,204 +777,183 @@ block content
                   .col-md-5
                     .btn-group.btn-group-justified
                       .btn-group
-                        input.btn(type="submit", id="button_add_watch_address", value="Add to watch list")
+                        input.btn(type='submit', id='button_add_watch_address', value='Add to watch list')
                   .col-md-7#form_add_watch_address
-                    input.col-md-3(id="input_watch_address_title", type="text", placeholder="Title")
-                    input.col-md-9(id="input_watch_address", type="text", maxlength='34', placeholder="A valid address")
-                script.
-                  /**
-                   * Disable the button until inputs are filled
-                   */
-                  $('#button_add_watch_address').prop('disabled', true);
-                  $('#form_add_watch_address input').keyup(function() {
-                    var inputs_empty = false;
+                    input.col-md-3(id='input_watch_address_title', type='text', placeholder='Title')
+                    input.col-md-9(id='input_watch_address', type='text', maxlength='34', placeholder='A valid address')
+                  script.
+                    /**
+                     * Disable the button until inputs are filled
+                     */
+                    $('#button_add_watch_address').prop('disabled', true);
+                    $('#form_add_watch_address input').keyup(function() {
+                      var inputs_empty = false;
 
-                    $('#form_add_watch_address input').each(function() {
-                      if ($(this).val().length == 0) {
-                        inputs_empty = true;
+                      $('#form_add_watch_address input').each(function() {
+                        if ($(this).val().length === 0) {
+                          inputs_empty = true;
+                        }
+                      });
+
+                      if (inputs_empty) {
+                        $('#button_add_watch_address').prop('disabled', true);
+                      } else {
+                        $('#button_add_watch_address').prop('disabled', false);
                       }
                     });
 
-                    if (inputs_empty) {
-                      $('#button_add_watch_address').prop('disabled', true);
-                    } else {
-                      $('#button_add_watch_address').prop('disabled', false);
-                    }
-                  });
-
-                  /**
-                   * Emit new watch address
-                   */
-                  $('#button_add_watch_address').click(function() {
-                    socket.emit('addwatchaddress', {'address':$('#input_watch_address').val(), 'title':$('#input_watch_address_title').val()});
-                  });
+                    $('#button_add_watch_address').click(function() {
+                      socket.emit('addwatchaddress', {
+                        'address':$('#input_watch_address').val(),
+                        'title':$('#input_watch_address_title').val()
+                      });
+                    });
 
           .row-m-tb-10
+            #table_trade_history
             script.
               socket.on('trades', function(trades) {
                 $('#table_trade_history').empty();
-                var html_table = $('<table id="trade_history" class="table table-striped table-hover"><thead><tr><th></th><th>Date</th><th>Type</th><th>BTC/VNL</th><th>VNL</th><th>BTC</th></tr></thead></table>');
+                var table = $('<table id="trade_history" class="table table-striped table-hover"><thead><tr><th></th><th>Date</th><th>Type</th><th>BTC/VNL</th><th>VNL</th><th>BTC</th></tr></thead></table>');
 
-                for (var i in trades) {
-                  html_table.append('<tr><td><img style="padding-bottom:2px" src="images/' + trades[i]['exchange'] +  '.png" /></td><td>' + moment(trades[i]['date']).format('YYYY-MM-DD HH:mm:ss') + '</td><td class="' + _.capitalize(trades[i]['type'].toLowerCase()) + '">' + _.capitalize(trades[i]['type'].toLowerCase()) + '</td><td class="text-right">' + parseFloat(trades[i]['vanilla_rate']).toFixed(8) + '</td><td class="text-right">' + parseFloat(trades[i]['vanilla_amount']).toFixed(8) + '</td><td class="text-right">' + parseFloat(trades[i]['btc_total']).toFixed(8) + '</td></tr>');
-                }
+                trades.forEach(function(trade) {
+                  table.append('<tr><td><img style="padding-bottom:2px" src="images/' + trade.exchange +  '.png" /></td><td>' + moment(trade.date).format('YYYY-MM-DD HH:mm:ss') + '</td><td class="' + _.capitalize(trade.type.toLowerCase()) + '">' + _.capitalize(trade.type.toLowerCase()) + '</td><td class="text-right">' + parseFloat(trade.vanilla_rate).toFixed(8) + '</td><td class="text-right">' + parseFloat(trade.vanilla_amount).toFixed(8) + '</td><td class="text-right">' + parseFloat(trade.btc_total).toFixed(8) + '</td></tr>');
+                });
 
-                $('#table_trade_history').append(html_table);
+                $('#table_trade_history').append(table);
                 trades_table = $('#trade_history').DataTable({
                   'searching':false,
                   'paging':false,
                   'info':false,
                   'scrollY':'242px',
                   'scrollCollapse':true,
-                  'order':[[1,'DESC']]
+                  'order':[[1,'desc']]
                 });
               });
 
-            .placeholder #[span#table_trade_history]
-
         .col-md-8
-          script.
-
-            /**
-             * List complete history
-             */
-            socket.on('transactions', function(obj) {
-              $('#table_complete_history').empty();
-              $('#graph_timeseries').empty();
-              $('#graph_rewards_monthly').empty();
-
-              var html_table = $('<table id="txhistory" class="table table-striped table-hover"><thead><tr><th>Transactions</th><th>Account</th><th>Address</th><th>Category</th><th>Amount</th><th></th><th>Block hash</th><th>txid</th></tr></thead></table>');
-              var unconfirmed = 0;
-              var local_params = local_currency_params(local_currency['code']);
-              var rewards_spread = [];
-              var rewards_current_month = [];
-              var month = new Date().getMonth() + 1;
-              var year = new Date().getFullYear();
-
-              /**
-               * Prepare empty array with days of the month
-               */
-              for (var i = 1; i <= new Date(year, month, 0).getDate(); i++) {
-                if (i < 10) {
-                  prefix = '0';
-                } else {
-                  prefix = '';
-                }
-
-                rewards_current_month.push({'date':month + '-' + prefix + i, 'rewards':0});
-              }
-
-              for (key in obj) {
-                /**
-                 * Check if tx has been included in a block
-                 */
-                if (obj[key].hasOwnProperty('blockhash')) {
-                  blockhash = '<a href="https://blockchain.vanillacoin.net/block/' + obj[key]['blockhash'] + '" target="_blank">' + obj[key]['blockhash'].substring(54,64) + '</a>';
-
-                  /**
-                   * If it's zerotime.. :)
-                   */
-                  if (obj[key]['blockhash'] == "0000000000000000000000000000000000000000000000000000000000000000") {
-                    blockhash = '----------';
-                  }
-                } else {
-                  blockhash = '----------';
-                }
-
-                /**
-                 * Count all unconfirmed transactions
-                 */
-                if (obj[key]['confirmations'] == 0 && obj[key]['category'] != 'self-send') {
-                  unconfirmed += obj[key]['amount'];
-                }
-
-                /**
-                 * Fill with super-peer rewards (generate)
-                 */
-                if (obj[key].hasOwnProperty('pos')) {
-                  if (!obj[key]['pos']) {
-                    var month_generated = new Date(obj[key]['timereceived']).getMonth() + 1;
-                    var day_generated = new Date(obj[key]['timereceived']).getDate().toString();
-
-                    if (month_generated == month) {
-                      rewards_current_month[day_generated - 1]['rewards'] += 1;
-                    }
-
-                    rewards_spread.push({"value":obj[key]['timereceived']});
-                  }
-                }
-
-                var color = 'Buy';
-
-                if (obj[key]['category'] == 'send') {
-                  color = 'Sell';
-                }
-
-                var confs = '';
-
-                if (obj[key]['confirmations'] == 0 && obj[key]['category'] != 'immature') {
-                  confs = ' (0/1)';
-                }
-
-                if (obj[key]['category'] == 'immature') {
-                  confs = ' (' + obj[key]['confirmations'] + '/220)';
-                }
-
-                var address = '<a href="https://blockchain.vanillacoin.net/address/' + obj[key]['address'] + '" target="_blank">' + obj[key]['address'] + '</a>';
-
-                if (obj[key]['category'] == 'self-send') {
-                  color = '';
-                }
-
-                html_table.append('<tr><td>' + moment(obj[key]['timereceived']).format('YYYY-MM-DD HH:mm:ss') + '</td><td>' + obj[key]['account'] + '</td><td class="font-mono">' + address + '</td><td>' + obj[key]['category'] + confs + '</td><td class="text-right ' + color + '">' + accounting.formatMoney(obj[key]['amount'], '', 6, ',', '.') + '</td><td class="text-right ' + color + '">' + accounting.formatMoney(obj[key]['amount'] * local_currency['btc'] * local_currency['vanilla_average'], local_params['symbol'], 2, local_params['thousand'], local_params['decimal']) + ' ' + local_currency['code'] + '</td><td class="font-mono">' + blockhash + '</td><td class="font-mono"><a href="https://blockchain.vanillacoin.net/tx/' + obj[key]['txid'] + '" target="_blank">' + obj[key]['txid'].substring(0, 10) + '</a></td></tr>');
-              }
-
-              /**
-               * Create reward spread and rewards per day graphs
-               */
-              timeseries('#graph_timeseries', rewards_spread, false);
-              rewards_per_day('#graph_rewards_monthly', rewards_current_month);
-
-              if (rewards_spread.length < 1 && !$('#incentive_window_graphs').hasClass('hidden')) {
-                $('#incentive_window_graphs').toggleClass('hidden');
-              }
-
-              if (rewards_spread.length > 0 && $('#incentive_window_graphs').hasClass('hidden')) {
-                $('#incentive_window_graphs').toggleClass('hidden');
-              }
-
-              if (rewards_spread.length == 0 && $('#view-node-incentives-about').hasClass('hidden')) {
-                $('#view-node-incentives-about').toggleClass('hidden');
-              }
-
-              if (unconfirmed == 0) {
-                if (!$('#nav-unconfirmed').hasClass('hidden')) {
-                  $('#nav-unconfirmed').addClass('hidden');
-                }
-              } else {
-                if ($('#nav-unconfirmed').hasClass('hidden')) {
-                  $('#nav-unconfirmed').toggleClass('hidden');
-                }
-              }
-
-              $('#table_complete_history').append(html_table);
-              $('#unconfirmed').text(unconfirmed);
-              $('#rewards_total').text(rewards_spread.length);
-
-              txs_table = $('#txhistory').DataTable({
-                'paging':false,
-                'info':false,
-                'scrollY':'783px',
-                'scrollCollapse':true,
-                'order':[[0,'desc']],
-                'sDOM':'null',
-                'columnDefs':[{"targets":4, "orderable":false}]
-              });
-            });
-
           .row
             .col-md-12
-              .placeholder #[span#table_complete_history]
+              #table_complete_history
+              script.
+                socket.on('transactions', function(transactions) {
+                  $('#table_complete_history').empty();
+                  $('#graph_timeseries').empty();
+                  $('#graph_rewards_monthly').empty();
+
+                  var table = $('<table id="txhistory" class="table table-striped table-hover"><thead><tr><th>Transactions</th><th>Account</th><th>Address</th><th>Category</th><th>Amount</th><th></th><th>Block hash</th><th>txid</th></tr></thead></table>');
+                  var unconfirmed = 0;
+                  var rewards_spread = [];
+                  var rewards_current_month = [];
+                  var month = new Date().getMonth() + 1;
+                  var year = new Date().getFullYear();
+                  var days = new Date(year, month, 0).getDate();
+
+                  /**
+                   * Prepare empty array with days of the month
+                   */
+                  for (var i = 1;i <= days;i++) {
+                    i < 10 ? prefix = '0' : prefix = '';   
+
+                    rewards_current_month.push({
+                      'date':month + '-' + prefix + i,
+                      'rewards':0
+                    });
+                  }
+
+                  transactions.forEach(function(tx) {
+                    if (tx.hasOwnProperty('blockhash')) {
+                      if (tx.blockhash === '0000000000000000000000000000000000000000000000000000000000000000') {
+                        blockhash = '----------';
+                      } else {
+                        blockhash = '<a href="https://blockchain.vanillacoin.net/block/' + tx.blockhash + '" target="_blank">' + tx.blockhash.substring(54,64) + '</a>';
+                      }
+                    } else {
+                      blockhash = '----------';
+                    }
+
+                    if (tx.confirmations === 0 && tx.category !== 'self-send') {
+                      unconfirmed += tx.amount;
+                    }
+
+                    /**
+                     * Fill with incentive rewards
+                     */
+                    if (tx.hasOwnProperty('pos')) {
+                      if (!tx.pos) {
+                        var month_generated = new Date(tx.timereceived).getMonth() + 1;
+                        var day_generated = new Date(tx.timereceived).getDate().toString();
+
+                        if (month_generated === month) {
+                          rewards_current_month[day_generated - 1].rewards += 1;
+                        }
+
+                        rewards_spread.push({
+                          'value':tx.timereceived
+                        });
+                      }
+                    }
+
+                    var color = 'Buy';
+                    var address = '<a href="https://blockchain.vanillacoin.net/address/' + tx.address + '" target="_blank">' + tx.address + '</a>';
+                    var confirmations_clean = '';
+
+                    if (tx.category === 'immature') {
+                      confirmations_clean = ' (' + tx.confirmations + '/220)';
+                    }
+
+                    if (tx.confirmations === 0 && tx.category !== 'immature') {
+                      confirmations_clean = ' (0/1)';
+                    }
+
+                    if (tx.category === 'send') {
+                      color = 'Sell';
+                    }
+
+                    if (tx.category === 'self-send') {
+                      color = '';
+                    }
+
+                    table.append('<tr><td>' + moment(tx.timereceived).format('YYYY-MM-DD HH:mm:ss') + '</td><td>' + tx.account + '</td><td class="font-mono">' + address + '</td><td>' + tx.category + confirmations_clean + '</td><td class="text-right ' + color + '">' + accounting.formatMoney(tx.amount, '', 6, ',', '.') + '</td><td class="text-right ' + color + '">' + accounting.formatMoney(tx.amount * local_currency.btc * local_currency.vanilla_average, local_params.symbol, 2, local_params.thousand, local_params.decimal) + ' ' + local_currency.code + '</td><td class="font-mono">' + blockhash + '</td><td class="font-mono"><a href="https://blockchain.vanillacoin.net/tx/' + tx.txid + '" target="_blank">' + tx.txid.substring(0, 10) + '</a></td></tr>');
+                  });
+
+                  /**
+                   * Create reward spread and rewards per day graphs
+                   */
+                  timeseries('#graph_timeseries', rewards_spread, false);
+                  rewards_per_day('#graph_rewards_monthly', rewards_current_month);
+
+                  if (rewards_spread.length > 0) {
+                    $('#incentive_window_graphs').removeClass('hidden');
+                    $('#about_incentives').addClass('hidden');
+                  } else {
+                    $('#incentive_window_graphs').addClass('hidden');
+                    $('#about_incentives').removeClass('hidden');
+                  }
+
+                  if (unconfirmed === 0) {
+                    $('#nav-unconfirmed').addClass('hidden');
+                  } else {
+                    $('#nav-unconfirmed').removeClass('hidden');
+                  }
+
+                  $('#table_complete_history').append(table);
+                  $('#unconfirmed').text(unconfirmed);
+                  $('#rewards_total').text(rewards_spread.length);
+
+                  txs_table = $('#txhistory').DataTable({
+                    'paging':false,
+                    'info':false,
+                    'scrollY':'783px',
+                    'scrollCollapse':true,
+                    'order':[[0,'desc']],
+                    'sDOM':'null',
+                    'columnDefs':[{
+                      'targets':4,
+                      'orderable':false
+                    }]
+                  });
+                });
 
     #view-node-incentives.hidden
       .row
@@ -1087,47 +979,37 @@ block content
           .col-md-6
             h4 CURRENT MONTH
             .row.text-center #[span#graph_rewards_monthly]
-        #view-node-incentives-about.hidden
+        #about_incentives.hidden
           .col-md-12
             br
             p The node incentives system donates a portion of the miners coinbase reward to peers that are helping to maintain the network infrastructure. The system is constantly probing for good publicly addressable peers. These peers are voted on using a deterministic scoring system that is secured by the blockchain. Additionally there is a collateral mechanism that can prohibit votes from peers that do not have at least N amount of coins (in a single deposit) in their default wallet address. The only requirements for participating in the incentive system are a possible collateral deposit and a publically addressable peer.
             p
-              b Q: 
-              | How do I know if my client is a candidate for incentive rewards?
+              b How do I know if my client is a candidate for incentive rewards?
               br
-              b A: 
               | Vote candidate above would display true and you wouldn't be seeing this message.
             p
-              b Q: 
-              | Is collateral required?
+              b How much is the collateral deposit?
               br
-              b A: 
               | A collateral deposit of at least 10000 into the default wallet address is required to be a vote candiate (started at block 220000).
             p
-              b Q: 
-              | How do I deposit collateral?
+              b How do I deposit collateral?
               br
-              b A: 
-              | You send 10000 coins to 
+              | You send 10000 coins to the default wallet address (
               b #[span#walletaddress] 
-              | (default wallet address) as a single transaction. Within some time it should reflect in 
+              | ) as a single transaction. Within some time it should reflect in 
               b Vote candidate 
               | above changing to true if the deposit was equal or greater than 10000.
             p
-              b Q: 
-              | What is the incentive percentage?
+              b What is the incentive reward percentage?
               br
-              b A: 
               | Check out 
               a(href='https://gist.github.com/john-connor/967ba7f7e9dd0ec1f7a9', target='_blank') full schedule 
               | or the 
               a(href='https://gist.github.com/whphhg/304ec44a760477a98726', target='_blank') condensed version
               | .
             p
-              b Q: 
-              | How do mining pools reward users?
+              b How do mining pools reward users?
               br
-              b A: 
               | As found in getblocktemplate, they are required to include a transaction if the incentive address is not empty.
               blockquote
                 p
@@ -1142,34 +1024,27 @@ block content
                   | }
 
             p
-              b Q: 
-              | What happens if a mining pool doesn't include the incentive transaction when required?
+              b What happens if a mining pool doesn't include the incentive transaction when required?
               br
-              b A: 
               | The block will be dropped and their ban score will be incremented.
             p
-              b Q: 
-              | Is there a guarantee I will be chosen to receive an incentive reward?
+              b Is there a guarantee I will be chosen to receive an incentive reward?
               br
-              b A: 
               | No, some peers may not be providing reliable service or have bad luck due to variance.
             p The minimum computing requirements for running an incentivized node are:
             ul
               li Dual core CPU
               li 2 gigabytes of memory (Physical RAM)
               li 500 megabytes of free disk space
-            .row
-              .col-md-6
-                p You can read more about it in the 
-                  a(href='https://github.com/john-connor/papers/blob/master/node_incentives.pdf', target='_blank') whitepaper
-                  | .
-              .col-md-6.text-right
-                p The above text is a lightly edited copy of 
-                  a(href='http://vanillacoin.net/wiki/Technologies/Node%20Incentives.md', target='_blank') Node Incentives 
-                  | from the Vanilla wiki.
+            p The above text is a lightly edited copy of 
+              a(href='http://vanillacoin.net/wiki/Technologies/Node%20Incentives.md', target='_blank') Node Incentives 
+              | from the Vanilla wiki.
+              | You can read more about it in the 
+              a(href='https://github.com/john-connor/papers/blob/master/node_incentives.pdf', target='_blank') whitepaper
+              | .
       .row
         .col-md-2
-          input.col-md-12(id="input_estimate_blocktime", type="text", maxlength="7", placeholder="Estimate future block time")
+          input.col-md-12(id='input_estimate_blocktime', type='text', maxlength='7', placeholder='Estimate future block time')
         .col-md-10#blocktime_estimation
           b #[span#future_block_already_submitted]
           #estimate_blocktime.hidden
@@ -1198,10 +1073,6 @@ block content
 
               if (future_block - blocks > 0) {
                 estimate.setSeconds(estimate.getSeconds() + (future_block - blocks) * time_per_block);
-
-                /**
-                 * Calculate %
-                 */
                 socket.emit('incentive_reward', future_block);
 
                 /**
@@ -1232,23 +1103,14 @@ block content
                   $('#incentive_reward').text(((subsidy / 100) * obj).toFixed(6));
                 });
 
-                if ($('#estimate_blocktime').hasClass('hidden')) {
-                  $("#estimate_blocktime").toggleClass('hidden');
-                }
-
-                /**
-                 * Update the rest of the text
-                 */
+                $("#estimate_blocktime").removeClass('hidden');
                 $('#pow_reward').text(subsidy.toFixed(6));
                 $('#future_block_already_submitted').text('');
                 $("#future_block_estimated_time").text(moment(estimate).format('YYYY-MM-DD HH:mm:ss'));
                 $('#future_block_in').text(moment().to(estimate.toISOString()));
               } else {
                 $('#future_block_already_submitted').text('Block already submitted');
-
-                if (!$('#estimate_blocktime').hasClass('hidden')) {
-                  $("#estimate_blocktime").toggleClass('hidden');
-                }
+                $("#estimate_blocktime").addClass('hidden');
               }
             }
           });
@@ -1256,8 +1118,8 @@ block content
           /**
            * Allow only backspace, delete, left arrow, right arrow, enter, 0-9, numpad 0-9
            */
-          $("#input_estimate_blocktime").keydown(function(e) {
-            if (!(e.keyCode == 46 || e.keyCode == 8 || e.keyCode == 37 || e.keyCode == 39 || e.keyCode == 13 || (e.keyCode >= 48 && e.keyCode <= 57) || (e.keyCode >= 96 && e.keyCode <= 105))) {
+          $('#input_estimate_blocktime').keydown(function(e) {
+            if (!(e.keyCode === 46 || e.keyCode === 8 || e.keyCode === 37 || e.keyCode === 39 || e.keyCode === 13 || (e.keyCode >= 48 && e.keyCode <= 57) || (e.keyCode >= 96 && e.keyCode <= 105))) {
               e.preventDefault();
             }
           });
@@ -1266,145 +1128,144 @@ block content
       .row
         .col-md-12
           #map
-        script.
-          /**
-           * Create new leaflet map
-           */
-          peers_map = new L.Map('map', {
-            center: [43.321153, -28.602914],
-            zoom: 4,
-            zoomControl:false
-          });
-
-          /**
-           * Add mapquest tile layer and give proper attributions
-           */
-          L.tileLayer('http://otile4.mqcdn.com/tiles/1.0.0/osm/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors. Tiles courtesy of <a href="http://www.mapquest.com/">MapQuest</a>. <img src="http://developer.mapquest.com/content/osm/mq_logo.png">',
-            maxZoom: 18
-          }).addTo(peers_map);
-
-          var controls_previous = null;
-          var marker_groups_previous = {};
-
-          /**
-           * Custom marker icon
-           */
-          var vanilla_icon = L.icon({
-            iconUrl: '/images/marker-icon.png',
-            shadowUrl: '/images/marker-shadow.png'
-          });
-
-          /**
-           * Update markers with lon/lat pairs from nodes_geomap
-           */
-          socket.on('nodes_geomap', function(nodes_geomap) {
-            var marker_groups = {};
-            var controls_selected = {};
-
-            /**
-             * Save checkbox states
-             */
-            $('.leaflet-control-layers-base :input').each(function() {
-              controls_selected[$(this)['context']['parentElement']['textContent'].replace(' ','')] = $(this)['context']['checked'];
-            });
-
-            /**
-             * If controls are defined, remove them from the map
-             */
-            if (controls_previous != null) {
-              controls_previous.removeFrom(peers_map);
-            }
-
-            /**
-             * Remove previously added overlays
-             */
-            for (var i in marker_groups_previous) {
-              marker_groups_previous[i].clearLayers();
-            }
-
-            /**
-             * Create layer groups and add markers
-             */
-            for (var i in nodes_geomap) {
-              if (nodes_geomap[i].hasOwnProperty('lat') && nodes_geomap[i].hasOwnProperty('lon')) {
-                /**
-                 * Add new subver to the object and initialize a new layer group as value
-                 */
-                if (!marker_groups.hasOwnProperty(nodes_geomap[i]['group'])) {
-                  marker_groups[nodes_geomap[i]['group']] = L.layerGroup();
-                }
-
-                /**
-                 * Create a marker based on provided lat / lon and add it to the layer group
-                 */
-                L.marker([nodes_geomap[i]['lat'], nodes_geomap[i]['lon']], {icon: vanilla_icon}).bindPopup('<p><b>Country</b>: ' + nodes_geomap[i]['country'] + '</p><p><b>Address</b>: ' + nodes_geomap[i]['addr'] + '</p><p><b>Version</b>: ' + nodes_geomap[i]['subver_clean'] + '</p>').addTo(marker_groups[nodes_geomap[i]['group']]);
-              }
-            }
-
-            /**
-             * Prevent creating empty controls by checking length
-             */
-            if (Object.keys(marker_groups).length > 0) {
-              for (var i in marker_groups) {
-                /**
-                 * If there are no controls present yet, add every overlay, else only add currently selected overlays (preserve checkboxes)
-                 */
-                if (Object.keys(controls_selected).length == 0) {
-                  marker_groups[i].addTo(peers_map);
-                  break;
-                } else {
-                  if (controls_selected.hasOwnProperty(i)) {
-                    if (controls_selected[i]) {
-                      marker_groups[i].addTo(peers_map);
-                    }
-                  } else {
-                    marker_groups[i].addTo(peers_map);
-                  }
-                }
-              }
-
-              /**
-               * Save current (different from previous) objects
-               */
-              controls_previous = L.control.layers(marker_groups, '', {collapsed:false}).addTo(peers_map);
-              marker_groups_previous = marker_groups;
-            }
-          });
-
-          /**
-           * List neighbouring peers
-           */
-          socket.on('nodes_connected', function(obj) {
-            $('#table_getpeerinfo').empty();
-
-            var html_table = $('<table id="neighbouring_nodes_table" class="table table-striped table-hover"><thead><tr><th><i class="glyphicon glyphicon-user" /> Neighbouring peers</th><th>Country</th><th>Last sent</th><th>Last received</th><th>Established</th><th>Protocol</th><th>Version</th><th>Inbound</th><th>Starting height</th><th>Ban score</th></tr></thead></table>');
-
-            for (key in obj) {
-              /**
-               * Check if country is set and update accordingly
-               */
-              if (obj[key].hasOwnProperty('country')) {
-                var country = obj[key]['country'];
-              } else {
-                var country = 'Updating..';
-              }
-
-              html_table.append('<tr><td>' + obj[key]['addr'] + '</td><td>' + country + '</td><td>' + moment(obj[key]['lastsend']).format('YYYY-MM-DD HH:mm:ss') + '</td><td>' + moment(obj[key]['lastrecv']).format('YYYY-MM-DD HH:mm:ss') + '</td><td>' + moment(obj[key]['conntime']).fromNow() + '</td><td>' + obj[key]['version'] + '</td><td>' + obj[key]['subver_clean'] + '</td><td>' + obj[key]['inbound'] + '</td><td>' + obj[key]['startingheight'] + '</td><td>' + obj[key]['banscore'] + '/100</td></tr>');
-            }
-
-            $('#table_getpeerinfo').append(html_table);
-            peers_table = $('#neighbouring_nodes_table').DataTable({
-              'searching':false,
-              'paging':false,
-              'info':false,
-              'order':[[6,'desc']]
-            });
-          });
-
       .row.m-tb-10
         .col-md-12
           #table_getpeerinfo
+      script.
+        /**
+         * Create new leaflet map
+         */
+        peers_map = new L.Map('map', {
+          center: [43.321153, -28.602914],
+          zoom: 4,
+          zoomControl: false
+        });
+
+        /**
+         * Add mapquest tile layer and give proper attributions
+         */
+        L.tileLayer('http://otile4.mqcdn.com/tiles/1.0.0/osm/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors. Tiles courtesy of <a href="http://www.mapquest.com/">MapQuest</a>.',
+          maxZoom: 18
+        }).addTo(peers_map);
+
+        var controls_previous = null;
+        var marker_groups_previous = {};
+
+        /**
+         * Custom marker icon
+         */
+        var vanilla_icon = L.icon({
+          iconUrl: '/images/marker-icon.png',
+          shadowUrl: '/images/marker-shadow.png'
+        });
+
+        /**
+         * Update markers with lon/lat pairs from nodes_geomap
+         */
+        socket.on('nodes_geomap', function(nodes_geomap) {
+          var marker_groups = {};
+          var controls_selected = {};
+
+          /**
+           * Save checkbox states
+           */
+          $('.leaflet-control-layers-base :input').each(function() {
+            controls_selected[$(this).context.parentElement.textContent.replace(' ','')] = $(this).context.checked;
+          });
+
+          /**
+           * If controls are defined, remove them from the map
+           */
+          if (controls_previous !== null) {
+            controls_previous.removeFrom(peers_map);
+          }
+
+          /**
+           * Remove previously added overlays
+           */
+          for (var i in marker_groups_previous) {
+            marker_groups_previous[i].clearLayers();
+          }
+
+          /**
+           * Create layer groups and add markers
+           */
+          for (var i in nodes_geomap) {
+            if (nodes_geomap[i].hasOwnProperty('lat') && nodes_geomap[i].hasOwnProperty('lon')) {
+              /**
+               * Add new subver to the object and initialize a new layer group as value
+               */
+              if (!marker_groups.hasOwnProperty(nodes_geomap[i].group)) {
+                marker_groups[nodes_geomap[i].group] = L.layerGroup();
+              }
+
+              /**
+               * Create a marker based on provided lat / lon and add it to the layer group
+               */
+              L.marker([nodes_geomap[i].lat, nodes_geomap[i].lon], {icon: vanilla_icon}).bindPopup('<p><b>Country</b>: ' + nodes_geomap[i].country + '</p><p><b>Address</b>: ' + nodes_geomap[i].addr + '</p><p><b>Version</b>: ' + nodes_geomap[i].subver_clean + '</p>').addTo(marker_groups[nodes_geomap[i].group]);
+            }
+          }
+
+          /**
+           * Prevent creating empty controls by checking length
+           */
+          if (Object.keys(marker_groups).length > 0) {
+            for (var i in marker_groups) {
+              /**
+               * If there are no controls present yet, add every overlay, else only add currently selected overlays (preserve checkboxes)
+               */
+              if (Object.keys(controls_selected).length === 0) {
+                marker_groups[i].addTo(peers_map);
+                break;
+              } else {
+                if (controls_selected.hasOwnProperty(i)) {
+                  if (controls_selected[i]) {
+                    marker_groups[i].addTo(peers_map);
+                  }
+                } else {
+                  marker_groups[i].addTo(peers_map);
+                }
+              }
+            }
+
+            /**
+             * Save current (different from previous) objects
+             */
+            controls_previous = L.control.layers(marker_groups, '', {collapsed:false}).addTo(peers_map);
+            marker_groups_previous = marker_groups;
+          }
+        });
+
+        /**
+         * List neighbouring peers
+         */
+        socket.on('nodes_connected', function(nodes_connected) {
+          $('#table_getpeerinfo').empty();
+
+          var table = $('<table id="neighbouring_nodes_table" class="table table-striped table-hover"><thead><tr><th>Neighbouring peers</th><th>Country</th><th>Last sent</th><th>Last received</th><th>Established</th><th>Protocol</th><th>Version</th><th>Inbound</th><th>Starting height</th><th>Ban score</th></tr></thead></table>');
+
+          nodes_connected.forEach(function(node) {
+            /**
+             * Check if country is set and update accordingly
+             */
+            if (node.hasOwnProperty('country')) {
+              var country = node.country;
+            } else {
+              var country = 'Updating..';
+            }
+
+            table.append('<tr><td>' + node.addr + '</td><td>' + country + '</td><td>' + moment(node.lastsend).format('YYYY-MM-DD HH:mm:ss') + '</td><td>' + moment(node.lastrecv).format('YYYY-MM-DD HH:mm:ss') + '</td><td>' + moment(node.conntime).fromNow() + '</td><td>' + node.version + '</td><td>' + node.subver_clean + '</td><td>' + node.inbound + '</td><td>' + node.startingheight + '</td><td>' + node.banscore + '/100</td></tr>');
+          });
+
+          $('#table_getpeerinfo').append(table);
+          peers_table = $('#neighbouring_nodes_table').DataTable({
+            'searching':false,
+            'paging':false,
+            'info':false,
+            'order':[[6,'desc']]
+          });
+        });
 
     #view-maintenance.hidden
       .row
@@ -1418,11 +1279,10 @@ block content
                     | Change passphrase
                 .panel-body
                   p Change your wallet passphrase.
-
-                  form(id="form_wallet_passphrase_change")
-                    input.col-md-7(id="input_old_passphrase", type="password", placeholder="Old passphrase")
-                    input.col-md-7(id="input_new_passphrase", type="password", placeholder="New passphrase")
-                    input.col-md-4.btn.pull-right(type="submit", id="button_wallet_passphrase_change", value="Change passphrase")
+                  form(id='form_wallet_passphrase_change')
+                    input.col-md-7(id='input_old_passphrase', type='password', placeholder='Old passphrase')
+                    input.col-md-7(id='input_new_passphrase', type='password', placeholder='New passphrase')
+                    input.col-md-4.btn.pull-right(type='submit', id='button_wallet_passphrase_change', value='Change passphrase')
                   script.
                     /**
                      * Disable the button until inputs are filled
@@ -1432,7 +1292,7 @@ block content
                       var inputs_empty = false;
 
                       $('#form_wallet_passphrase_change input').each(function() {
-                        if ($(this).val().length == 0) {
+                        if ($(this).val().length === 0) {
                           inputs_empty = true;
                         }
                       });
@@ -1447,10 +1307,10 @@ block content
                     $('#form_wallet_passphrase_change').on('submit', function(e) {
                       e.preventDefault();
 
-                      /**
-                       * Call RPC method walletpassphrasechange on the server
-                       */
-                      socket.emit('walletpassphrasechange', {'old':$('#input_old_passphrase').val(), 'new':$('#input_new_passphrase').val()});
+                      socket.emit('walletpassphrasechange', {
+                        'old':$('#input_old_passphrase').val(),
+                        'new':$('#input_new_passphrase').val()
+                      });
                     });
 
               .panel.panel-default
@@ -1460,25 +1320,24 @@ block content
                     | Dump private keys
                 .panel-body
                   p Dump individual private key or dump your whole wallet to a comma-separated values (CSV) file inside of your Vanilla data directory.
-
-                  form(id="form_dump_private_key")
-                    input.col-md-5(id="input_dump_private_key", type="text", placeholder="Valid public key from this wallet")
-                    input.col-md-3.btn.btn-m-l(type="submit", id="button_dump_private_key", value="Dump private key")
-                    input.col-md-3.btn.pull-right(type="button", id="button_dump_wallet", value="Dump wallet")
+                  form(id='form_dump_private_key')
+                    input.col-md-5(id='input_dump_private_key', type='text', placeholder='Valid public key from this wallet')
+                    input.col-md-3.btn.btn-m-l(type='submit', id='button_dump_private_key', value='Dump private key')
+                    input.col-md-3.btn.pull-right(type='button', id='button_dump_wallet', value='Dump wallet')
                   script.
                     /**
                      * Disable the button until input is filled
                      */
                     $('#button_dump_private_key').prop('disabled', true);
                     $('#input_dump_private_key').keyup(function() {
-                      $('#button_dump_private_key').prop('disabled', this.value == "" ? true : false);
+                      $('#button_dump_private_key').prop('disabled', this.value === '' ? true : false);
                     });
 
                     /**
                      * Allow only backspace, delete, left arrow, right arrow, enter, 1-9 a-zA-Z, numpad 1-9
                      */
-                    $("#input_dump_private_key").keydown(function(e) {
-                      if (!(e.keyCode == 46 || e.keyCode == 8 || e.keyCode == 37 || e.keyCode == 39 || e.keyCode == 13 || (e.keyCode >= 49 && e.keyCode <= 90) || (e.keyCode >= 97 && e.keyCode <= 105))) {
+                    $('#input_dump_private_key').keydown(function(e) {
+                      if (!(e.keyCode === 46 || e.keyCode === 8 || e.keyCode === 37 || e.keyCode === 39 || e.keyCode === 13 || (e.keyCode >= 49 && e.keyCode <= 90) || (e.keyCode >= 97 && e.keyCode <= 105))) {
                         e.preventDefault();
                       }
                     });
@@ -1502,7 +1361,6 @@ block content
                     | Export transaction history
                 .panel-body
                   p Exports your transaction history to a comma-separated values (CSV) file inside of your WebUI directory.
-
                   input.btn.col-md-12(type='button', id='button_dump_transaction_history', value='Export')
                   script.
                     $('#button_dump_transaction_history').click(function() {
@@ -1517,7 +1375,6 @@ block content
                     | Backup wallet
                 .panel-body
                   p Backups your wallet to a timestamped .dat file inside of your Vanilla executable directory.
-
                   input.btn.col-md-12(type='button', id='button_backup_wallet', value='Backup')
                   script.
                     $('#button_backup_wallet').click(function() {
@@ -1533,7 +1390,6 @@ block content
                 .panel-body
                   p Checks the wallet for inconsistencies and reports them below.
                   #check_wallet_response
-
                   input.btn.col-md-12(type='button', id='button_check_wallet', value='Check')
                   script.
                     $('#button_check_wallet').click(function() {
@@ -1556,7 +1412,6 @@ block content
                 .panel-body
                   p Repairs the wallet if an inconsistency is found and shows report below.
                   #repair_wallet_response
-
                   input.btn.col-md-12(type='button', id='button_repair_wallet', value='Repair')
                   script.
                     $('#button_repair_wallet').click(function() {
@@ -1596,55 +1451,50 @@ block content
             button(type='button', class='btn btn-default dropdown-toggle', data-toggle='dropdown').
               #[span#select_local_currency]
             ul.dropdown-menu#select_currency
-              script.
-                socket.on('exchange_rates', function(exchange_rates) {
+            script.
+              socket.on('local_currencies', function(local_currencies) {
+                for (var i in local_currencies) {
+                  $('<li><a href="#">' + i + '</a></li>').appendTo('#select_currency');
+                }
+
+                $('ul#select_currency li').click(function(e) {
+                  socket.emit('settings_set', {
+                    'property':'local_currency',
+                    'value':$(this).text()}
+                  );
+                  socket.emit('cache_send', 'watch_addresses');
+                  socket.emit('cache_send', 'accounts');
+                  socket.emit('cache_send', 'transactions.log');
+
                   /**
-                   * If there are no exchange rates it means this is the first run, reload the page after 2 seconds
+                   * Hide conversion info on currency switch and clear input field
                    */
-                  if (Object.keys(exchange_rates).length == 0) {
-                    setTimeout(function() {
-                      window.location.reload(true);
-                    }, 2000);
+                  if (!$('#convert_currency').hasClass('hidden')) {
+                    $('#convert_currency').toggleClass('hidden');
                   }
 
-                  for (var i in exchange_rates) {
-                    $('<li><a href="#">' + i + '</a></li>').appendTo('#select_currency');
-                  }
-
-                  $('ul#select_currency li').click(function(e) {
-                    socket.emit('settings_set', {'property':'local_currency', 'value':$(this).text()});
-
-                    /**
-                     * Request responses again to update them with new currency info
-                     */
-                    socket.emit('cache_send', 'watch_addresses');
-                    socket.emit('cache_send', 'accounts');
-                    socket.emit('cache_send', 'transactions.log');
-
-                    /**
-                     * Hide conversion info on currency switch and clear input field
-                     */
-                    if (!$('#convert_currency').hasClass('hidden')) {
-                      $("#convert_currency").toggleClass('hidden');
-                    }
-
-                    $('#input_convert_amount').val('');
-                  });
+                  $('#input_convert_amount').val('');
                 });
+              });
 
           .btn-group.dropup.pull-right
             button(type='button', class='btn btn-default dropdown-toggle', data-toggle='dropdown').
               Theme
             ul.dropdown-menu#select_stylesheet
-              script.
-                socket.on('stylesheets', function(stylesheets) {
-                  stylesheets.forEach(function(stylesheet) {
-                    $('<li><a href="#">' + _.capitalize(stylesheet.split('.')[0]) + '</a></li>').appendTo('#select_stylesheet');
-                  });
+            script.
+              socket.on('stylesheets', function(stylesheets) {
+                console.log(stylesheets);
 
-                  $('ul#select_stylesheet li').click(function(e) {
-                    socket.emit('settings_set', {'property':'stylesheet', 'value':$(this).text().toLowerCase()});
-
-                    $('head link#theme').attr('href', '/stylesheets/' + $(this).text().toLowerCase() + '.css');
-                  });
+                stylesheets.forEach(function(stylesheet) {
+                  $('<li><a href="#">' + _.capitalize(stylesheet.split('.')[0]) + '</a></li>').appendTo('#select_stylesheet');
                 });
+
+                $('ul#select_stylesheet li').click(function(e) {
+                  socket.emit('settings_set', {
+                    'property':'stylesheet',
+                    'value':$(this).text().toLowerCase()
+                  });
+
+                  $('head link#theme').attr('href', '/stylesheets/' + $(this).text().toLowerCase() + '.css');
+                });
+              });
