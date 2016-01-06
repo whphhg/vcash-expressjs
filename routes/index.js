@@ -979,11 +979,16 @@ io.on('connection', function(socket) {
     socket.emit('stylesheet', cache.settings.stylesheet);
     socket.emit('stylesheets', cache.stylesheets);
     socket.emit('local_currencies', cache.currencies.local.rates);
-    socket.emit('currency_info', {
-      'code':cache.settings.local_currency,
-      'btc':cache.currencies.local.rates[cache.settings.local_currency].btc,
-      'vanilla_average':cache.currencies.vanilla.average
-    });
+
+    if (cache.currencies.local.rates.hasOwnProperty(cache.settings.local_currency)) {
+      if (cache.currencies.local.rates[cache.settings.local_currency].hasOwnProperty('btc')) {
+        socket.emit('currency_info', {
+          'code':cache.settings.local_currency,
+          'btc':cache.currencies.local.rates[cache.settings.local_currency].btc,
+          'vanilla_average':cache.currencies.vanilla.average
+        });
+      }
+    }
 
     /**
      * Update wallet info on initial client connection and repeat every 10 seconds
