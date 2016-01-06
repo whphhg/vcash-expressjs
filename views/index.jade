@@ -1483,8 +1483,6 @@ block content
             ul.dropdown-menu#select_stylesheet
             script.
               socket.on('stylesheets', function(stylesheets) {
-                console.log(stylesheets);
-
                 stylesheets.forEach(function(stylesheet) {
                   $('<li><a href="#">' + _.capitalize(stylesheet.split('.')[0]) + '</a></li>').appendTo('#select_stylesheet');
                 });
