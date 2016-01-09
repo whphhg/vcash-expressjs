@@ -885,20 +885,20 @@ io.on('connection', function(socket) {
               tx.amount = cache.transactions.edits[tx.txid].amount;
 
               if (tx.category === 'generate') {
-                tx.category = 'pos reward';
+                tx.category = 'PoS reward';
               }
             } else {
               tx.pos = false;
 
               if (tx.category === 'generate') {
-                tx.category = 'incentive reward';
+                tx.category = 'Incentive reward';
               }
             }
           }
 
           if (tx.category === 'receive') {
             if (cache.transactions.edits[tx.txid]['self-send']) {
-              tx.category = 'self-send';
+              tx.category = 'Self-send';
             }
           }
 
@@ -946,6 +946,26 @@ io.on('connection', function(socket) {
           if (!is_mine) {
             cache.transactions.log.push(tx);
           }
+        }
+
+        if (tx.category === 'receive') {
+          if (tx.confirmations === 0) {
+            tx.category = 'Receiving';
+          } else {
+            tx.category = 'Received';
+          }
+        }
+
+        if (tx.category === 'send') {
+          if (tx.confirmations === 0) {
+            tx.category = 'Sending';
+          } else {
+            tx.category = 'Sent';
+          }
+        }
+
+        if (tx.category === 'immature') {
+          tx.category = 'Immature';
         }
       });
 

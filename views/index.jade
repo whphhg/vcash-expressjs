@@ -872,7 +872,7 @@ block content
                       blockhash = '----------';
                     }
 
-                    if (tx.confirmations === 0 && tx.category !== 'self-send') {
+                    if (tx.confirmations === 0 && tx.category !== 'Self-send') {
                       unconfirmed += tx.amount;
                     }
 
@@ -898,19 +898,19 @@ block content
                     var address = '<a href="https://blockchain.vanillacoin.net/address/' + tx.address + '" target="_blank">' + tx.address + '</a>';
                     var confirmations_clean = '';
 
-                    if (tx.category === 'immature') {
+                    if (tx.category === 'Immature') {
                       confirmations_clean = ' (' + tx.confirmations + '/220)';
                     }
 
-                    if (tx.confirmations === 0 && tx.category !== 'immature') {
+                    if (tx.confirmations === 0 && tx.category !== 'Immature') {
                       confirmations_clean = ' (0/1)';
                     }
 
-                    if (tx.category === 'send') {
+                    if (tx.category === 'Sent' || tx.category === 'Sending') {
                       color = 'Sell';
                     }
 
-                    if (tx.category === 'self-send') {
+                    if (tx.category === 'Self-send') {
                       color = '';
                     }
 
