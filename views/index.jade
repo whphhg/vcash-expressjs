@@ -735,7 +735,7 @@ block content
                       $('#addresses-watchonly').removeClass('hidden');
                     }
 
-                    var table = $('<table id="watchaddresses" class="table table-striped"><thead><tr><th style="width:45%">Address</th><th style="width:16%">Title</th><th style="width:17%">Balance</th><th style="width:22%"></th></tr></thead></table>');
+                    var table = $('<table id="watchaddresses" class="table table-striped table-hover"><thead><tr><th style="width:45%">Address</th><th style="width:16%">Title</th><th style="width:17%">Balance</th><th style="width:22%"></th></tr></thead></table>');
 
                     for (key in watch.addresses) {
                       table.append('<tr><td class="font-mono"><a href="https://blockchain.vanillacoin.net/address/' + key + '" target="_blank">' + key + '</a></td><td class="watchonly-title">' + watch.addresses[key].title + '</td><td class="text-right">' + accounting.formatMoney(watch.addresses[key].balance, '', 6, ',', '.') + '</td><td class="text-right">' + accounting.formatMoney(parseFloat(watch.addresses[key].balance) * local_currency.btc * local_currency.vanilla_average, local_params.symbol, 2, local_params.thousand, local_params.decimal) + ' ' + local_currency.code + '</td></tr>');

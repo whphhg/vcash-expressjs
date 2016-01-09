@@ -441,7 +441,8 @@ io.on('connection', function(socket) {
     rpc_validateaddress(add.address, function(response) {
       if (response.isvalid && !response.ismine && !cache.watch_addresses[add.address]) {
         cache.watch_addresses[add.address] = {
-          'title':add.title
+          'title':add.title,
+          'balance':-1
         };
 
         check_watchaddresses();
@@ -654,14 +655,10 @@ io.on('connection', function(socket) {
         (function(address) {
           https.get('https://blockchain.vanillacoin.net/ext/getbalance/' + address, function(response) {
             response.on('data', function(balance) {
-              /**
-               * NaN is the only value that is treated as unequal to itself,
-               * you can always test if a value is NaN by checking it for equality to itself
-               */
-              if (!(parseFloat(balance.toString()) !== parseFloat(balance.toString()))) {
-                var balance = JSON.parse(balance);
+              if (response.headers['content-type'] === 'text/html; charset=utf-8' || response.headers['content-type'] === 'application/json') {
+                balance = JSON.parse(balance);
 
-                if (balance.error) {
+                if (balance.hasOwnProperty('error')) {
                   balance = 0;
                 }
 
