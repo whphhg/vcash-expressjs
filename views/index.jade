@@ -572,6 +572,7 @@ block content
 
                             $('#button_wallet_unlock').click(function() {
                               socket.emit('walletpassphrase', $('#input_wallet_passphrase').val());
+                              $('#input_wallet_passphrase').val('');
                             });
 
                         #wallet_lock.hidden
@@ -584,21 +585,28 @@ block content
 
                         #wallet_encrypt.hidden
                           .col-md-8
-                            input.col-md-12(id='input_encryption_key', type='text', placeholder='Wallet is unencrypted')
+                            input.col-md-12(id='input_encryption_key', type='password', placeholder='Enter passphrase')
+                            input.col-md-12(id='input_encryption_key_repeat', type='password', placeholder='Repeat passphrase')
                           .col-md-4
                             input.col-md-12.btn(type='submit', id='button_wallet_encrypt', value='Encrypt')
                           script.
                             /**
-                             * Disable the button until input is filled
+                             * Disable the button until inputs are filled and matching
                              */
                             $('#button_wallet_encrypt').prop('disabled', true);
-                            $('#input_encryption_key').keyup(function() {
-                              $('#button_wallet_encrypt').prop('disabled', this.value === '' ? true : false);   
+                            $('#wallet_encrypt input').keyup(function() {
+                              if ($('#input_encryption_key').val() && $('#input_encryption_key_repeat').val()) {
+                                if ($('#input_encryption_key').val() === $('#input_encryption_key_repeat').val()) {
+                                  $('#button_wallet_encrypt').prop('disabled', false);
+                                } else {
+                                  $('#button_wallet_encrypt').prop('disabled', true);
+                                }
+                              }
                             });
 
                             $('#button_wallet_encrypt').click(function() {
                               socket.emit('encryptwallet', $('#input_encryption_key').val());
-                              $('#wallet_encrypt').toggleClass('hidden');
+                              $('#wallet_encrypt').addClass('hidden');
                             });
 
               input.col-md-6.pull-right(type='text', id='filter_transactions', placeholder='Filter transactions')
@@ -1282,25 +1290,22 @@ block content
                   form(id='form_wallet_passphrase_change')
                     input.col-md-7(id='input_old_passphrase', type='password', placeholder='Old passphrase')
                     input.col-md-7(id='input_new_passphrase', type='password', placeholder='New passphrase')
+                    input.col-md-7(id='input_new_passphrase_repeat', type='password', placeholder='Repeat new passphrase')
                     input.col-md-4.btn.pull-right(type='submit', id='button_wallet_passphrase_change', value='Change passphrase')
                   script.
                     /**
-                     * Disable the button until inputs are filled
+                     * Disable the button until inputs are filled and matching
                      */
                     $('#button_wallet_passphrase_change').prop('disabled', true);
                     $('#form_wallet_passphrase_change input').keyup(function() {
-                      var inputs_empty = false;
-
-                      $('#form_wallet_passphrase_change input').each(function() {
-                        if ($(this).val().length === 0) {
-                          inputs_empty = true;
+                      if ($('#input_old_passphrase').val()) {
+                        if ($('#input_new_passphrase').val() && $('#input_new_passphrase_repeat').val()) {
+                          if ($('#input_new_passphrase').val() === $('#input_new_passphrase_repeat').val()) {
+                            $('#button_wallet_passphrase_change').prop('disabled', false);
+                          } else {
+                            $('#button_wallet_passphrase_change').prop('disabled', true);
+                          }
                         }
-                      });
-
-                      if (inputs_empty) {
-                        $('#button_wallet_passphrase_change').prop('disabled', true);
-                      } else {
-                        $('#button_wallet_passphrase_change').prop('disabled', false);
                       }
                     });
 
@@ -1311,6 +1316,12 @@ block content
                         'old':$('#input_old_passphrase').val(),
                         'new':$('#input_new_passphrase').val()
                       });
+
+                      /**
+                       * Clear input fields and disable button
+                       */
+                      $('#form_wallet_passphrase_change').find('input[type=password]').val('');
+                      $('#button_wallet_passphrase_change').prop('disabled', true);
                     });
 
               .panel.panel-default
