@@ -317,6 +317,24 @@ io.on('connection', function(socket) {
   });
 
   /**
+   * Chainblender controls
+   */
+  socket.on('chainblender', function(action) {
+    rpc.call({'jsonrpc':'2.0', 'method':'chainblender', 'params':[action], 'id':0}, function(error, response) {
+      if (error || !response) {
+        console.log('RPC chainblender ERROR\n\n', error);
+        return;
+      }
+
+      if (action === 'start') {
+        socket.emit('alerts', 'Chainblender started.');
+      } else {
+        socket.emit('alerts', 'Chainblender stopped.')
+      }
+    });
+  });
+
+  /**
    * Re-send responses
    */
   socket.on('refresh', function() {
@@ -931,7 +949,15 @@ io.on('connection', function(socket) {
 
           var is_mine = false;
 
-          if (tx.category === 'send') {
+          if (tx.category === 'send' && tx.blended) {
+            tx.category = 'Blended';
+            tx.amount = tx.amount + tx.fee;
+          }
+
+          if (tx.category === 'send' && !tx.blended && Math.abs(tx.fee.toFixed(0)) === Math.abs(tx.amount.toFixed(0))) {
+            tx.category = 'Received';
+            tx.amount = tx.amount + tx.fee;
+          } else if (tx.category === 'send' && !tx.blended) {
             rpc_validateaddress(tx.address, function(address, txid) {
               if (address.ismine) {
                 is_mine = true;
@@ -1013,7 +1039,8 @@ io.on('connection', function(socket) {
     (function update() {
       rpc.call([
           {'jsonrpc':'2.0', 'method':'getinfo', 'params':[], 'id':0},
-          {'jsonrpc':'2.0', 'method':'getincentiveinfo', 'params':[], 'id':0}
+          {'jsonrpc':'2.0', 'method':'getincentiveinfo', 'params':[], 'id':0},
+          {'jsonrpc':'2.0', 'method':'chainblender', 'params':['info'], 'id':0}
         ], function(error, response) {
 
         if (error || !response) {
@@ -1021,7 +1048,9 @@ io.on('connection', function(socket) {
           return;
         }
 
-        cache.wallet_info = Object.assign({}, response[0].result, response[1].result);
+        cache.wallet_info = Object.assign({}, response[1].result, response[2].result);
+        cache.wallet_info = Object.assign({}, cache.wallet_info, response[0].result);
+
         cache.wallet_info.version = cache.wallet_info.version.replace(':', ' ');
         socket.emit('wallet_info', cache.wallet_info);
       });

@@ -25,6 +25,7 @@ block content
     var balance = 0;
     var moneysupply = 0;
     var accounts_tables = {};
+    var blendstate = '';
 
     var local_currency = {
       'code':'',
@@ -62,8 +63,10 @@ block content
      */
     socket.on('wallet_info', function(wallet_info) {
       for (var i in wallet_info) {
-        if (i === 'balance') {
+        if (i === 'balance' || i === 'denominatedbalance' || i === 'nondenominatedbalance' || i === 'blendedbalance') {
           $('#' + i).text(accounting.formatMoney(wallet_info[i], '', 6, ',', '.'));
+        } else if (i === 'blendedpercentage') {
+          $('#' + i).text(wallet_info[i].toFixed(2));
         } else {
           $('#' + i).text(wallet_info[i]);
         }
@@ -84,6 +87,7 @@ block content
       balance = wallet_info.balance;
       blocks = wallet_info.blocks;
       moneysupply = wallet_info.moneysupply;
+      blendstate = wallet_info.blendstate;
 
       $('#connected_to_nodes').text(wallet_info.connections);
     });
@@ -235,7 +239,61 @@ block content
           .collapse.navbar-collapse
             ul.nav.navbar-nav
               li
-                h3.navbar-text.font-mono #[span#balance] ~ #[span#balance_btc] BTC  &nbsp;#[span#balance_local]
+                h3.navbar-text.font-mono #[span#balance]
+              li.dropdown#chainblender
+                a.dropdown-toggle(href='#', data-toggle='dropdown', data-placement='bottom', title='Chainblender')
+                  i.glyphicon.glyphicon-link
+                script.
+                  $('li#chainblender a').tooltip();
+                  $('li#chainblender a').click(function() {
+                    $('.tooltip').hide();
+                  });
+
+                ul.dropdown-menu
+                  li
+                    .navbar-chainblender
+                      .row
+                        .col-md-7
+                          p Blendstate
+                          p Denominated balance
+                          p Non-denominated balance
+                          p Blended balance
+                          p Blended percentage
+                        .col-md-5
+                          p
+                            b #[span#blendstate]
+                          p
+                            b #[span#denominatedbalance]
+                          p
+                            b #[span#nondenominatedbalance]
+                          p
+                            b #[span#blendedbalance]
+                          p
+                            b #[span#blendedpercentage]%
+                      .row
+                        .col-md-12
+                          .m-t-10
+                            .btn-group(role='group')
+                              button(type='button' id='chainblenderStartBtn' class='btn') Start
+                              button(type='button' id='chainblenderStopBtn' class='btn') Stop
+                      script.
+                        /**
+                         * Don't hide dropdown when you change select field or click on .row div
+                         */
+                        $('.dropdown-menu .row').click(function(e) {
+                          e.stopPropagation();
+                        });
+
+                        $('#chainblenderStartBtn').click(function(e) {
+                          socket.emit('chainblender', 'start')
+                        });
+
+                        $('#chainblenderStopBtn').click(function(e) {
+                          socket.emit('chainblender', 'stop')
+                        });
+
+              li
+                h3.navbar-text.font-mono #[span#balance_btc] BTC  &nbsp;#[span#balance_local]
               li#refresh-li
                 a(href='#', data-toggle='tooltip', data-placement='bottom', title='Refresh transactions & accounts')
                   i.glyphicon.glyphicon-refresh
@@ -1086,7 +1144,7 @@ block content
                 /**
                  * Calculate PoW reward (from https://github.com/john-connor/vanillacoin/blob/master/src/reward.cpp)
                  */
-                var subsidy = 128;
+                var subsidy = 128000000;
 
                 if (future_block < 325000) {
                   for (i = 50000; i <= future_block; i += 50000) {
@@ -1094,14 +1152,18 @@ block content
                   }
                 } else {
                   for (i = 10000; i <= future_block; i += 10000) {
-                    subsidy -= subsidy / 28 - (10000 / future_block) * (10000 / future_block);
+                    subsidy -= subsidy / 28;
+                    subsidy = Math.ceil(subsidy);
                     subsidy -= (subsidy / 28 * 4) / 28;
+                    subsidy = Math.ceil(subsidy);
                   }
                 }
 
-                if (subsidy < 2) {
+                if ((subsidy / 1000000) < 2) {
                   subsidy = 2;
                 }
+
+                subsidy = subsidy / 1000000;
 
                 /**
                  * Update text with % and incentive reward (in coins)
@@ -1453,7 +1515,7 @@ block content
             i.glyphicon.glyphicon-stop
             | &nbsp; On block 
             b #[span#blocks] &nbsp;&nbsp;&nbsp;&nbsp;
-            i.glyphicon.glyphicon-link
+            i.glyphicon.glyphicon-globe
             | &nbsp; Connected to 
             b #[span#connected_to_nodes] 
             | nodes
