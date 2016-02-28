@@ -326,10 +326,14 @@ io.on('connection', function(socket) {
         return;
       }
 
-      if (action === 'start') {
-        socket.emit('alerts', 'Chainblender started.');
+      if (!response.error) {
+        if (action === 'start') {
+          socket.emit('alerts', 'Chainblender started.');
+        } else {
+          socket.emit('alerts', 'Chainblender stopped.')
+        }
       } else {
-        socket.emit('alerts', 'Chainblender stopped.')
+        socket.emit('alerts', 'You have to unlock the wallet before using Chainblender.');
       }
     });
   });
