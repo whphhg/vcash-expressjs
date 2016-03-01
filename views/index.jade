@@ -90,6 +90,17 @@ block content
       blendstate = wallet_info.blendstate;
 
       $('#connected_to_nodes').text(wallet_info.connections);
+
+      /**
+       * Show / hide Chainblender information
+       */
+      if (blendstate) {
+        $('#chainblenderAvailable').removeClass('hidden');
+        $('#chainblenderUnavailable').addClass('hidden');
+      } else {
+        $('#chainblenderUnavailable').removeClass('hidden');
+        $('#chainblenderAvailable').addClass('hidden');
+      }
     });
 
     /**
@@ -252,30 +263,35 @@ block content
                 ul.dropdown-menu
                   li
                     .navbar-chainblender
-                      .row
-                        .col-md-7
-                          p Blendstate
-                          p Denominated balance
-                          p Non-denominated balance
-                          p Blended balance
-                          p Blended percentage
-                        .col-md-5
-                          p
-                            b #[span#blendstate]
-                          p
-                            b #[span#denominatedbalance]
-                          p
-                            b #[span#nondenominatedbalance]
-                          p
-                            b #[span#blendedbalance]
-                          p
-                            b #[span#blendedpercentage]%
-                      .row
-                        .col-md-12
-                          .m-t-10
-                            .btn-group(role='group')
-                              button(type='button' id='chainblenderStartBtn' class='btn') Start
-                              button(type='button' id='chainblenderStopBtn' class='btn') Stop
+                      #chainblenderAvailable
+                        .row
+                          .col-md-7
+                            p Blendstate
+                            p Denominated balance
+                            p Non-denominated balance
+                            p Blended balance
+                            p Blended percentage
+                          .col-md-5
+                            p
+                              b #[span#blendstate]
+                            p
+                              b #[span#denominatedbalance]
+                            p
+                              b #[span#nondenominatedbalance]
+                            p
+                              b #[span#blendedbalance]
+                            p
+                              b #[span#blendedpercentage]%
+                        .row
+                          .col-md-12
+                            .m-t-10
+                              .btn-group(role='group')
+                                button(type='button' id='chainblenderStartBtn' class='btn') Start
+                                button(type='button' id='chainblenderStopBtn' class='btn') Stop
+
+                      #chainblenderUnavailable
+                        b Unlock the wallet to use Chainblender.
+
                       script.
                         /**
                          * Don't hide dropdown when you change select field or click on .row div
