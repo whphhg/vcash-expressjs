@@ -1169,28 +1169,30 @@ io.on('connection', function(socket) {
 
             response.on('end', function() {
               if (buffer) {
-                var trade_history = JSON.parse(buffer);
+                try {
+                  var trade_history = JSON.parse(buffer);
 
-                if (trade_history.constructor === Array && trade_history.length > 1) {
-                  cache.currencies.vanilla.poloniex = parseFloat(trade_history[0].rate);
+                  if (trade_history.constructor === Array && trade_history.length > 1) {
+                    cache.currencies.vanilla.poloniex = parseFloat(trade_history[0].rate);
 
-                  trade_history.forEach(function(trade) {
-                    trades.push({
-                      'exchange':'poloniex',
-                      'date':trade.date,
-                      'type':trade.type,
-                      'vanilla_rate':trade.rate,
-                      'vanilla_amount':trade.amount,
-                      'btc_total':trade.total
+                    trade_history.forEach(function(trade) {
+                      trades.push({
+                        'exchange':'poloniex',
+                        'date':trade.date,
+                        'type':trade.type,
+                        'vanilla_rate':trade.rate,
+                        'vanilla_amount':trade.amount,
+                        'btc_total':trade.total
+                      });
                     });
-                  });
 
-                  return resolve(trades);
-                } else {
-                  return reject('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL ERROR\n\nThe response is not an array or it has no elements.');
+                    return resolve(trades);
+                  } else {
+                    return reject('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL ERROR\n\nThe response is not an array or it has no elements.');
+                  }
+                } catch(e) {
+                  return reject('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL ERROR\n\n', e);
                 }
-              } else {
-                return reject('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL ERROR\n\nThe buffer is empty.');
               }
             });
           }
@@ -1212,28 +1214,30 @@ io.on('connection', function(socket) {
 
             response.on('end', function() {
               if (buffer) {
-                var trade_history = JSON.parse(buffer);
+                try {
+                  var trade_history = JSON.parse(buffer);
 
-                if (trade_history.result.constructor === Array && trade_history.result.length > 1) {
-                  cache.currencies.vanilla.bittrex = parseFloat(trade_history.result[0].Price);
+                  if (trade_history.result.constructor === Array && trade_history.result.length > 1) {
+                    cache.currencies.vanilla.bittrex = parseFloat(trade_history.result[0].Price);
 
-                  trade_history.result.forEach(function(trade) {
-                    trades.push({
-                      'exchange':'bittrex',
-                      'date':trade.TimeStamp,
-                      'type':trade.OrderType,
-                      'vanilla_rate':trade.Price,
-                      'vanilla_amount':trade.Quantity,
-                      'btc_total':trade.Total
+                    trade_history.result.forEach(function(trade) {
+                      trades.push({
+                        'exchange':'bittrex',
+                        'date':trade.TimeStamp,
+                        'type':trade.OrderType,
+                        'vanilla_rate':trade.Price,
+                        'vanilla_amount':trade.Quantity,
+                        'btc_total':trade.Total
+                      });
                     });
-                  });
 
-                  return resolve(trades);
-                } else {
-                  return reject('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50 ERROR\n\nThe response is not an array or it has no elements.');
+                    return resolve(trades);
+                  } else {
+                    return reject('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50 ERROR\n\nThe response is not an array or it has no elements.');
+                  }
+                } catch(e) {
+                  return reject('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50 ERROR\n\n', e);
                 }
-              } else {
-                return reject('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50 ERROR\n\nThe buffer is empty.');
               }
             });
           }
