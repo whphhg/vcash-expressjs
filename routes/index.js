@@ -1204,7 +1204,7 @@ io.on('connection', function(socket) {
       promises.push(new Promise(function(resolve, reject) {
         var trades = [];
 
-        https.get('https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50', function(response) {
+        https.get('https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-XVC&count=50', function(response) {
           if (response.headers['content-type'] === 'application/json; charset=utf-8') {
             var buffer = '';
 
@@ -1233,16 +1233,16 @@ io.on('connection', function(socket) {
 
                     return resolve(trades);
                   } else {
-                    return reject('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50 ERROR\n\nThe response is not an array or it has no elements.');
+                    return reject('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-XVC&count=50 ERROR\n\nThe response is not an array or it has no elements.');
                   }
                 } catch(e) {
-                  return reject('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50 ERROR\n\n', e);
+                  return reject('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-XVC&count=50 ERROR\n\n', e);
                 }
               }
             });
           }
         }).on('error', function(error) {
-          return reject('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-VNL&count=50 ERROR\n\n' + error);
+          return reject('HTTPS https://bittrex.com/api/v1.1/public/getmarkethistory?market=BTC-XVC&count=50 ERROR\n\n' + error);
         });
       }));
 
