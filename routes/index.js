@@ -1159,7 +1159,7 @@ io.on('connection', function(socket) {
       promises.push(new Promise(function(resolve, reject) {
         var trades = [];
 
-        https.get('https://poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL', function(response) {
+        https.get('https://poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_XVC', function(response) {
           if (response.headers['content-type'] === 'application/json') {
             var buffer = '';
 
@@ -1188,10 +1188,10 @@ io.on('connection', function(socket) {
 
                     return resolve(trades);
                   } else {
-                    return reject('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL ERROR\n\nThe response is not an array or it has no elements.');
+                    return reject('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_XVC ERROR\n\nThe response is not an array or it has no elements.');
                   }
                 } catch(e) {
-                  return reject('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL ERROR\n\n', e);
+                  return reject('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_XVC ERROR\n\n', e);
                 }
               }
             });
