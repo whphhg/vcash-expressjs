@@ -37,6 +37,6 @@ npm start
 
 Donations welcome at
 ```
-VNL: Vsaj7MMLwSMgzBQEonfMLR9QxqkKprFVGR
+XVC: Vsaj7MMLwSMgzBQEonfMLR9QxqkKprFVGR
 BTC: 1Pay4nywPa1qkP5no3rcrLhfVo6Bc1JE8s
 ```

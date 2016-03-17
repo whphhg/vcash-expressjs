@@ -403,7 +403,7 @@ io.on('connection', function(socket) {
                                           console.log(res.error);
                                       }
                                   } else {
-                                      socket.emit('alerts', "Sent " + amount + " VNL to " + address + " (txid: " + res.result + ").");
+                                      socket.emit('alerts', "Sent " + amount + " XVC to " + address + " (txid: " + res.result + ").");
 
                                       rpc_listsinceblock();
                                   }
@@ -1197,7 +1197,7 @@ io.on('connection', function(socket) {
             });
           }
         }).on('error', function(error) {
-          return reject('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_VNL ERROR\n\n' + error);
+          return reject('HTTPS poloniex.com/public?command=returnTradeHistory&currencyPair=BTC_XVC ERROR\n\n' + error);
         });
       }));
 
