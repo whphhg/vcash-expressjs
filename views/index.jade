@@ -245,7 +245,7 @@ block content
       .row
         .col-md-12
           .navbar-header
-            a.navbar-brand(href='http://vanillacoin.net', target='_blank')
+            a.navbar-brand(href='http://v.cash', target='_blank')
               img(src='/images/vanilla.png')
           .collapse.navbar-collapse
             ul.nav.navbar-nav
@@ -715,7 +715,7 @@ block content
 
                     for (var j in accounts[i].addresses) {
                       if (accounts[i].addresses[j].confirmations > 0) {
-                        address = '<a href="https://blockchain.vanillacoin.net/address/' + accounts[i].addresses[j].address + '" target="_blank">' + accounts[i].addresses[j].address + '</a>';
+                        address = '<a href="https://explorer.v.cash/address/' + accounts[i].addresses[j].address + '" target="_blank">' + accounts[i].addresses[j].address + '</a>';
                       } else {
                         address = accounts[i].addresses[j].address;
                       }
@@ -829,7 +829,7 @@ block content
 
                     for (key in watch.addresses) {
                       totalReceived += watch.addresses[key].balance
-                      table.append('<tr><td class="font-mono"><a href="https://blockchain.vanillacoin.net/address/' + key + '" target="_blank">' + key + '</a></td><td class="watchonly-title">' + watch.addresses[key].title + '</td><td class="text-right">' + accounting.formatMoney(watch.addresses[key].balance, '', 6, ',', '.') + '</td><td class="text-right">' + accounting.formatMoney(parseFloat(watch.addresses[key].balance) * local_currency.btc * local_currency.vanilla_average, local_params.symbol, 2, local_params.thousand, local_params.decimal) + ' ' + local_currency.code + '</td></tr>');
+                      table.append('<tr><td class="font-mono"><a href="https://explorer.v.cash/address/' + key + '" target="_blank">' + key + '</a></td><td class="watchonly-title">' + watch.addresses[key].title + '</td><td class="text-right">' + accounting.formatMoney(watch.addresses[key].balance, '', 6, ',', '.') + '</td><td class="text-right">' + accounting.formatMoney(parseFloat(watch.addresses[key].balance) * local_currency.btc * local_currency.vanilla_average, local_params.symbol, 2, local_params.thousand, local_params.decimal) + ' ' + local_currency.code + '</td></tr>');
                     }
 
                     if (Object.keys(watch.addresses).length >= 2) {
@@ -962,7 +962,7 @@ block content
                       if (tx.blockhash === '0000000000000000000000000000000000000000000000000000000000000000') {
                         blockhash = '----------';
                       } else {
-                        blockhash = '<a href="https://blockchain.vanillacoin.net/block/' + tx.blockhash + '" target="_blank">' + tx.blockhash.substring(54,64) + '</a>';
+                        blockhash = '<a href="https://explorer.v.cash/block/' + tx.blockhash + '" target="_blank">' + tx.blockhash.substring(54,64) + '</a>';
                       }
                     } else {
                       blockhash = '----------';
@@ -991,7 +991,7 @@ block content
                     }
 
                     var color = 'Buy';
-                    var address = '<a href="https://blockchain.vanillacoin.net/address/' + tx.address + '" target="_blank">' + tx.address + '</a>';
+                    var address = '<a href="https://explorer.v.cash/address/' + tx.address + '" target="_blank">' + tx.address + '</a>';
                     var confirmations_clean = '';
 
                     if (tx.category === 'Immature') {
@@ -1010,7 +1010,7 @@ block content
                       color = '';
                     }
 
-                    table.append('<tr><td>' + moment(tx.timereceived).format('YYYY-MM-DD HH:mm:ss') + '</td><td>' + tx.account + '</td><td class="font-mono">' + address + '</td><td>' + tx.category + confirmations_clean + '</td><td class="text-right ' + color + '">' + accounting.formatMoney(tx.amount, '', 6, ',', '.') + '</td><td class="text-right ' + color + '">' + accounting.formatMoney(tx.amount * local_currency.btc * local_currency.vanilla_average, local_params.symbol, 2, local_params.thousand, local_params.decimal) + ' ' + local_currency.code + '</td><td class="font-mono">' + blockhash + '</td><td class="font-mono"><a href="https://blockchain.vanillacoin.net/tx/' + tx.txid + '" target="_blank">' + tx.txid.substring(0, 10) + '</a></td></tr>');
+                    table.append('<tr><td>' + moment(tx.timereceived).format('YYYY-MM-DD HH:mm:ss') + '</td><td>' + tx.account + '</td><td class="font-mono">' + address + '</td><td>' + tx.category + confirmations_clean + '</td><td class="text-right ' + color + '">' + accounting.formatMoney(tx.amount, '', 6, ',', '.') + '</td><td class="text-right ' + color + '">' + accounting.formatMoney(tx.amount * local_currency.btc * local_currency.vanilla_average, local_params.symbol, 2, local_params.thousand, local_params.decimal) + ' ' + local_currency.code + '</td><td class="font-mono">' + blockhash + '</td><td class="font-mono"><a href="https://explorer.v.cash/tx/' + tx.txid + '" target="_blank">' + tx.txid.substring(0, 10) + '</a></td></tr>');
                   });
 
                   /**
@@ -1133,8 +1133,8 @@ block content
               li 2 gigabytes of memory (Physical RAM)
               li 500 megabytes of free disk space
             p The above text is a lightly edited copy of 
-              a(href='http://vanillacoin.net/wiki/Technologies/Node%20Incentives.md', target='_blank') Node Incentives 
-              | from the Vanilla wiki.
+              a(href='http://v.cash/wiki/Technologies/Node%20Incentives.md', target='_blank') Node Incentives 
+              | from the Vcash wiki.
               | You can read more about it in the 
               a(href='https://github.com/john-connor/papers/blob/master/incentive.pdf', target='_blank') whitepaper
               | .
@@ -1477,7 +1477,7 @@ block content
                     i.glyphicon.glyphicon-download-alt &nbsp;
                     | Backup wallet
                 .panel-body
-                  p Backups your wallet to a timestamped .dat file inside of your Vanilla executable directory.
+                  p Backups your wallet to a timestamped .dat file inside of your Vcash executable directory.
                   input.btn.col-md-12(type='button', id='button_backup_wallet', value='Backup')
                   script.
                     $('#button_backup_wallet').click(function() {
