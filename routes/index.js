@@ -675,7 +675,7 @@ io.on('connection', function(socket) {
     for (var i in cache.watch_addresses) {
       promises.push(new Promise(function(resolve, reject) {
         (function(address) {
-          https.get('https://blockchain.vanillacoin.net/ext/getbalance/' + address, function(response) {
+          https.get('https://explorer.v.cash/ext/getbalance/' + address, function(response) {
             response.on('data', function(balance) {
               if (response.headers['content-type'] === 'text/html; charset=utf-8' || response.headers['content-type'] === 'application/json') {
                 balance = JSON.parse(balance);
@@ -693,7 +693,7 @@ io.on('connection', function(socket) {
               }
             });
           }).on('error', function(error) {
-            return reject('HTTPS https://blockchain.vanillacoin.net/ext/getbalance/' + address + ' ERROR\n\n' + error);
+            return reject('HTTPS https://explorer.v.cash/ext/getbalance/' + address + ' ERROR\n\n' + error);
           });
         })(i);
       }));
@@ -1342,7 +1342,7 @@ io.on('connection', function(socket) {
  */
 router.get('/', function(req, res, next) {
   res.render('index', {
-    title:'Vanilla WebUI'
+    title:'Vcash WebUI'
   });
 });
 
