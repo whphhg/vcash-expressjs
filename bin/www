@@ -19,7 +19,7 @@ var server = http.createServer(app);
     server.listen(port, 'localhost');
 
 server.on('listening', function() {
-  console.log('Vanilla WebUI viewable on ' + server.address().address + ':' + server.address().port + '.\n');
+  console.log('Vcash WebUI viewable on ' + server.address().address + ':' + server.address().port + '.\n');
 });
 
 server.on('error', onError);

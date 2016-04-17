@@ -726,7 +726,7 @@ io.on('connection', function(socket) {
    * Get location of provided IP
    */
   function https_getlocation(ip) {
-    https.get('https://freegeoip.net/json/' + ip, function(response) {
+    https.get('https://geoip.nekudo.com/api/' + ip, function(response) {
       if (response.headers['content-type'] === 'application/json') {
         var buffer = '';
 
@@ -739,15 +739,15 @@ io.on('connection', function(socket) {
 
           if (location_info) {
             cache.nodes.geodata[ip] = {
-              'lon':location_info.longitude,
-              'lat':location_info.latitude,
-              'country':location_info.country_name
+              'lon':location_info.location.longitude,
+              'lat':location_info.location.latitude,
+              'country':location_info.country.name
             };
           }
         });
       }
     }).on('error', function(error) {
-      console.log('HTTPS https://freegeoip.net/json/' + ip + ' ERROR\n\n', error);
+      console.log('HTTPS https://geoip.nekudo.com/api/' + ip + ' ERROR\n\n', error);
       return;
     });
   }
