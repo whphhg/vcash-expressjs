@@ -1180,8 +1180,15 @@ block content
                   for (i = 50000; i <= future_block; i += 50000) {
                     subsidy -= subsidy / 6;
                   }
-                } else {
+                } else if (future_block < 385000) {
                   for (i = 10000; i <= future_block; i += 10000) {
+                    subsidy -= subsidy / 28;
+                    subsidy = Math.ceil(subsidy);
+                    subsidy -= (subsidy / 28 * 4) / 28;
+                    subsidy = Math.ceil(subsidy);
+                  }
+                } else {
+                  for (i = 7000; i <= future_block; i += 7000) {
                     subsidy -= subsidy / 28;
                     subsidy = Math.ceil(subsidy);
                     subsidy -= (subsidy / 28 * 4) / 28;
@@ -1189,8 +1196,9 @@ block content
                   }
                 }
 
-                if ((subsidy / 1000000) < 2) {
-                  subsidy = 2;
+                if ((subsidy / 1000000) < 1) {
+                  subsidy = 1;
+                  subsidy *= 1000000;
                 }
 
                 subsidy = subsidy / 1000000;
