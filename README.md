@@ -1,4 +1,4 @@
-# A (unofficial) Node.js WebUI for the Vanilla wallet
+# A (unofficial) Node.js WebUI for the Vcash wallet
 
 Works on Linux, Windows and OS X.
 
@@ -8,12 +8,12 @@ Latest version of Node.js
 Python 2 or 3
 ```
 
-**Warning**: Please backup your existing wallet files (~/.Vanillacoin/data/) folder. I take no responsibilty if you break something.
+**Warning**: Please backup your existing wallet files (~/.Vcash/data/) folder. I take no responsibilty if you break something.
 
 Clone the repository and install npm dependencies
 ```
-git clone https://github.com/whphhg/vanillacoind-web-ui
-cd vanillacoind-web-ui
+git clone https://github.com/whphhg/vcashd-webui
+cd vcashd-webui
 npm install
 ```
 
