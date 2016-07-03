@@ -127,7 +127,7 @@ if (!fs.existsSync('data')) {
  */
 for (var filename in data_files) {
   (function(filename, properties) {
-    fs.stat('data/' + filename + '.json', function(err, stats) { 
+    fs.stat('data/' + filename + '.json', function(err, stats) {
       if (err) {
         /**
          * ENOENT = no such file / dir
@@ -275,7 +275,7 @@ io.on('connection', function(socket) {
       if (response.hasOwnProperty('result')) {
         rpc_walletpassphrase();
       } else {
-        socket.emit('alerts', "The passphrase you've entered is incorrect.");                
+        socket.emit('alerts', "The passphrase you've entered is incorrect.");
       }
     });
   });
@@ -407,7 +407,7 @@ io.on('connection', function(socket) {
 
                                       rpc_listsinceblock();
                                   }
-                              }); 
+                              });
                           });
 
   /**
@@ -726,7 +726,7 @@ io.on('connection', function(socket) {
    * Get location of provided IP
    */
   function https_getlocation(ip) {
-    https.get('https://geoip.nekudo.com/api/' + ip, function(response) {
+    https.get('https://freegeoip.net/json/' + ip, function(response) {
       if (response.headers['content-type'] === 'application/json') {
         var buffer = '';
 
@@ -739,15 +739,15 @@ io.on('connection', function(socket) {
 
           if (location_info) {
             cache.nodes.geodata[ip] = {
-              'lon':location_info.location.longitude,
-              'lat':location_info.location.latitude,
-              'country':location_info.country.name
+              'lon':location_info.longitude,
+              'lat':location_info.latitude,
+              'country':location_info.country_name
             };
           }
         });
       }
     }).on('error', function(error) {
-      console.log('HTTPS https://geoip.nekudo.com/api/' + ip + ' ERROR\n\n', error);
+      console.log('HTTPS https://freegeoip.net/json/' + ip + ' ERROR\n\n', error);
       return;
     });
   }
