@@ -529,7 +529,7 @@ block content
                          */
                         $('#button_create_qr_code').prop('disabled', true);
                         $('#input_string_to_encode').keyup(function() {
-                          $('#button_create_qr_code').prop('disabled', this.value === '' ? true : false);   
+                          $('#button_create_qr_code').prop('disabled', this.value === '' ? true : false);
                         });
 
                         $('#button_create_qr_code').click(function() {
@@ -641,7 +641,7 @@ block content
                              */
                             $('#button_wallet_unlock').prop('disabled', true);
                             $('#input_wallet_passphrase').keyup(function() {
-                              $('#button_wallet_unlock').prop('disabled', this.value === '' ? true : false);   
+                              $('#button_wallet_unlock').prop('disabled', this.value === '' ? true : false);
                             });
 
                             $('#button_wallet_unlock').click(function() {
@@ -782,7 +782,7 @@ block content
                */
               $('#button_import_private_key').prop('disabled', true);
               $('#input_import_private_key').keyup(function() {
-                $('#button_import_private_key').prop('disabled', this.value === '' ? true : false);   
+                $('#button_import_private_key').prop('disabled', this.value === '' ? true : false);
               });
 
               $('#button_import_private_key').click(function() {
@@ -949,7 +949,7 @@ block content
                    * Prepare empty array with days of the month
                    */
                   for (var i = 1;i <= days;i++) {
-                    i < 10 ? prefix = '0' : prefix = '';   
+                    i < 10 ? prefix = '0' : prefix = '';
 
                     rewards_current_month.push({
                       'date':month + '-' + prefix + i,
@@ -1054,18 +1054,18 @@ block content
     #view-node-incentives.hidden
       .row
         .col-md-12
-          b Vote candidate: 
+          b Vote candidate:
           | #[span#votecandidate] &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
           | #[span#ip]
           b :
           | #[span#port] (
           b #[span#networkstatus]
           | ) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-          b TCP: 
+          b TCP:
           | #[span#connections]
-          b &nbsp;&nbsp; UDP: 
+          b &nbsp;&nbsp; UDP:
           | #[span#udp_connections] &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-          b Collateral: 
+          b Collateral:
           | #[span#collateralbalance] / #[span#collateralrequired]
       .row
         #incentive_window_graphs.hidden
@@ -1091,16 +1091,16 @@ block content
               b How do I deposit collateral?
               br
               | You send 10000 coins to the default wallet address (
-              b #[span#walletaddress] 
-              | ) as a single transaction. Within some time it should reflect in 
-              b Vote candidate 
+              b #[span#walletaddress]
+              | ) as a single transaction. Within some time it should reflect in
+              b Vote candidate
               | above changing to true if the deposit was equal or greater than 10000.
             p
               b What is the incentive reward percentage?
               br
-              | Check out 
-              a(href='https://gist.github.com/john-connor/967ba7f7e9dd0ec1f7a9', target='_blank') full schedule 
-              | or the 
+              | Check out
+              a(href='https://gist.github.com/john-connor/967ba7f7e9dd0ec1f7a9', target='_blank') full schedule
+              | or the
               a(href='https://gist.github.com/whphhg/304ec44a760477a98726', target='_blank') condensed version
               | .
             p
@@ -1132,10 +1132,10 @@ block content
               li Dual core CPU
               li 2 gigabytes of memory (Physical RAM)
               li 500 megabytes of free disk space
-            p The above text is a lightly edited copy of 
-              a(href='http://v.cash/wiki/Technologies/Node%20Incentives.md', target='_blank') Node Incentives 
+            p The above text is a lightly edited copy of
+              a(href='http://v.cash/wiki/Technologies/Node%20Incentives.md', target='_blank') Node Incentives
               | from the Vcash wiki.
-              | You can read more about it in the 
+              | You can read more about it in the
               a(href='https://github.com/john-connor/papers/blob/master/incentive.pdf', target='_blank') whitepaper
               | .
       .row
@@ -1144,13 +1144,13 @@ block content
         .col-md-10#blocktime_estimation
           b #[span#future_block_already_submitted]
           #estimate_blocktime.hidden
-            | Estimated block time is 
-            b #[span#future_block_estimated_time] 
-            | (#[span#future_block_in]) with an incentive reward of 
+            | Estimated block time is
+            b #[span#future_block_estimated_time]
+            | (#[span#future_block_in]) with an incentive reward of
             b #[span#incentive_reward]
-            | , which is 
-            b #[span#future_block_percentage] 
-            | of Proof-of-Work reward at 
+            | , which is
+            b #[span#future_block_percentage]
+            | of Proof-of-Work reward at
             b #[span#pow_reward]
             | .
         script.
@@ -1252,8 +1252,8 @@ block content
         /**
          * Add mapquest tile layer and give proper attributions
          */
-        L.tileLayer('http://otile4.mqcdn.com/tiles/1.0.0/osm/{z}/{x}/{y}.png', {
-          attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors. Tiles courtesy of <a href="http://www.mapquest.com/">MapQuest</a>.',
+        L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+          attribution: '&copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors. Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom, 2012.',
           maxZoom: 18
         }).addTo(peers_map);
 
@@ -1545,17 +1545,17 @@ block content
         .col-md-8
           p.text-muted.text-center
             i.glyphicon.glyphicon-briefcase
-            | &nbsp; Trading at 
+            | &nbsp; Trading at
             b #[span#vnl_btc] BTC ~ #[span#vnl_local] &nbsp;&nbsp;&nbsp;&nbsp;
             i.glyphicon.glyphicon-scale
-            | &nbsp; Market capitalization 
+            | &nbsp; Market capitalization
             b #[span#vnl_local_marketcap] &nbsp;&nbsp;&nbsp;&nbsp;
             i.glyphicon.glyphicon-stop
-            | &nbsp; On block 
+            | &nbsp; On block
             b #[span#blocks] &nbsp;&nbsp;&nbsp;&nbsp;
             i.glyphicon.glyphicon-globe
-            | &nbsp; Connected to 
-            b #[span#connected_to_nodes] 
+            | &nbsp; Connected to
+            b #[span#connected_to_nodes]
             | nodes
         .col-md-2
           .btn-group.dropup.pull-right.btn-m-l
