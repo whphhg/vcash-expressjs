@@ -8,12 +8,13 @@ Latest version of Node.js
 Python 2 or 3
 ```
 
-**Warning**: Please backup your existing wallet files (~/.Vcash/data/) folder. I take no responsibilty if you break something.
+**Warning**: Please backup your existing wallet files (Linux: ~/.Vcash/data/) folder.
+I take no responsibilty if you break something.
 
 Clone the repository and install npm dependencies
 ```
-git clone https://github.com/whphhg/vcashd-webui
-cd vcashd-webui
+git clone https://github.com/whphhg/vcash-webui
+cd vcash-webui
 npm install
 ```
 
@@ -21,6 +22,10 @@ Usage
 ```
 npm start
 ```
+
+View at http://localhost:1721
+```
+
 
 **Main**
 ![Alt](http://i.imgur.com/4kFiggk.png)
