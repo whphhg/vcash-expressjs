@@ -9,12 +9,15 @@ Python 2 or 3
 ```
 
 **Warning**:
+
 Please backup your existing wallet files folder.
+
 I take no responsibility if you break something.
 
 
 Linux: ~/.Vcash/data/
-Windows: ~/AppData/Roaming/Vcash
+
+Windows: ~/AppData/Roaming/Vcash/
 
 
 Clone the repository and install npm dependencies
