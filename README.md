@@ -1,4 +1,4 @@
-# A (unofficial) Node.js WebUI for the Vcash wallet
+# An unofficial Node.js WebUI for the Vcash wallet
 
 Works on Linux, Windows and OS X.
 
@@ -8,8 +8,14 @@ Latest version of Node.js
 Python 2 or 3
 ```
 
-**Warning**: Please backup your existing wallet files (Linux: ~/.Vcash/data/) folder.
-I take no responsibilty if you break something.
+**Warning**:
+Please backup your existing wallet files folder.
+I take no responsibility if you break something.
+
+
+Linux: ~/.Vcash/data/
+Windows: ~/AppData/Roaming/Vcash
+
 
 Clone the repository and install npm dependencies
 ```
