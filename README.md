@@ -1,5 +1,5 @@
 ## Vcash node.js web UI
-This is a web UI for Vcash, a decentralized currency for the internet. The GUI communicates with vcashd using RPC and is available for Linux, OS X and Windows.
+This is a web UI for Vcash, a decentralized currency for the internet. The UI communicates with vcashd using RPC and is available for Linux, OS X and Windows.
 
 :hatching_chick: **Warning**: This is beta software. I take no responsibility if you break something.
 
@@ -20,6 +20,7 @@ To install:
 To run (make sure to launch Vcash before):
 
     $ npm start
+
 
 
 View at http://localhost:1721
