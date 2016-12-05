@@ -1,54 +1,25 @@
-# An unofficial Node.js WebUI for the Vcash wallet
+## Vcash node.js web UI
+This is a web UI for Vcash, a decentralized currency for the internet. The GUI communicates with vcashd using RPC and is available for Linux, OS X and Windows.
 
-Works on Linux, Windows and OS X.
-
-The following software is required to be installed
-```
-Latest version of Node.js
-Python 2 or 3
-```
-
-**Warning**:
-```
-Please backup your existing wallet files folder.
-I take no responsibility if you break something.
-
-Linux: ~/.Vcash/data/
-Windows: ~/AppData/Roaming/Vcash/
-```
+:hatching_chick: **Warning**: This is beta software. I take no responsibility if you break something.
 
 
-Clone the repository and install npm dependencies
-```
-git clone https://github.com/whphhg/vcash-webui
-cd vcash-webui
-npm install
-```
+### Installing and updating
+The following dependencies are required to be installed:
+* latest version of [Vcash](https://v.cash/wallets.php) (either GUI or daemon)
+* latest version of [Node.js](https://nodejs.org/en/download/current/) ([Ubuntu users](https://nodejs.org/en/download/package-manager/#debian-and-ubuntu-based-linux-distributions))
+* Python 2 or 3
 
-Usage
-```
-npm start
-```
+
+To install:
+
+    $ git clone https://github.com/whphhg/vcash-webui.git OR download zip
+    $ cd vcash-webui
+    $ npm install
+
+To run (make sure to launch Vcash before):
+
+    $ npm start
+
 
 View at http://localhost:1721
-
-
-
-**Main**
-![Alt](http://i.imgur.com/4kFiggk.png)
-
-**Node incentives**
-![Alt](http://i.imgur.com/YXoOAzX.png)
-![Alt](http://i.imgur.com/Eudv5q1.png)
-
-**Network**
-![Alt](http://i.imgur.com/MbjMdm3.jpg)
-
-**Maintenance**
-![Alt](http://i.imgur.com/NQacsDM.png)
-
-Donations welcome at
-```
-XVC: Vsaj7MMLwSMgzBQEonfMLR9QxqkKprFVGR
-BTC: 1Pay4nywPa1qkP5no3rcrLhfVo6Bc1JE8s
-```
