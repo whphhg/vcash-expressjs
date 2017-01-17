@@ -3,7 +3,6 @@ Multi-platform UI for Vcash, a decentralized currency for the internet.
 
 :hatching_chick: **Warning**: This is beta software. I take no responsibility if you break something.
 
-### Installing from source
 The following dependencies are required to be installed:
 * latest version of [Vcash](https://vcash.info/wallets.php)
 * latest version of [Node.js](https://nodejs.org/en/download/current/) ([Ubuntu users](https://nodejs.org/en/download/package-manager/#debian-and-ubuntu-based-linux-distributions))
