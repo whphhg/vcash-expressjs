@@ -1,26 +1,21 @@
-## Vcash node.js web UI
-This is a web UI for Vcash, a decentralized currency for the internet. The UI communicates with vcashd using RPC and is available for Linux, OS X and Windows.
+## Vcash ExpressJS web UI
+Multi-platform UI for Vcash, a decentralized currency for the internet.
 
 :hatching_chick: **Warning**: This is beta software. I take no responsibility if you break something.
 
-
-### Installing and updating
+### Installing from source
 The following dependencies are required to be installed:
-* latest version of [Vcash](https://v.cash/wallets.php) (either GUI or daemon)
+* latest version of [Vcash](https://vcash.info/wallets.php)
 * latest version of [Node.js](https://nodejs.org/en/download/current/) ([Ubuntu users](https://nodejs.org/en/download/package-manager/#debian-and-ubuntu-based-linux-distributions))
 * Python 2 or 3
+* git
 
+Clone this repository using ``git clone``, move to the cloned directory using ``cd vcash-expressjs`` and install Node.js dependencies using ``npm install``.
 
-To install:
-
-    $ git clone https://github.com/whphhg/vcash-webui.git OR download zip
-    $ cd vcash-webui
+    $ git clone https://github.com/whphhg/vcash-expressjs.git
+    $ cd vcash-expressjs
     $ npm install
 
-To run (make sure to launch Vcash before):
+After it is done installing dependencies, you can start the web ui using ``npm start`` and view it at ``http://localhost:1721``.
 
     $ npm start
-
-
-
-View at http://localhost:1721
